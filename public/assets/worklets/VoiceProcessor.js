@@ -224,15 +224,20 @@ class VoiceProcessor extends AudioWorkletProcessor {
 
         let idx = Math.floor(voice.position);
 
-        if (idx >= voice.endFrame || idx >= voice.buffer[0].length - 1) {
+        // Anti-NaN / Out of bounds safety
+        const bufferLen = voice.buffer[0].length;
+        if (idx >= voice.endFrame || idx >= bufferLen - 1) {
           if (voice.triggerMode === 'LOOP' && voice.envelope.phase !== 'release') {
-            voice.position = voice.startFrame + (voice.position - idx);
+            voice.position = voice.startFrame + (voice.position % (voice.endFrame - voice.startFrame || 1));
             idx = Math.floor(voice.position);
           } else {
             voice.finished = true;
             break;
           }
         }
+
+        // Final safety clamp for idx
+        idx = Math.max(0, Math.min(idx, bufferLen - 2));
 
         const frac = voice.position - idx;
         const bufferL = voice.buffer[0];
@@ -247,7 +252,13 @@ class VoiceProcessor extends AudioWorkletProcessor {
           const inputSignals = [sL, sR];
           for (let c = 0; c < 2; c++) {
             const state = voice.filterState[c];
-            const v0 = inputSignals[c];
+            let v0 = inputSignals[c];
+
+            // Safety check for NaN or Infinity in filter state
+            if (!isFinite(state.s1) || !isFinite(state.s2)) {
+              state.s1 = 0;
+              state.s2 = 0;
+            }
 
             // TPT SVF Solver for Low Pass (v2)
             const v3 = v0 - state.s2;
@@ -258,7 +269,8 @@ class VoiceProcessor extends AudioWorkletProcessor {
             state.s1 = 2 * v1 - state.s1;
             state.s2 = 2 * v2 - state.s2;
 
-            inputSignals[c] = v2; // Low Pass output
+            // Safety clamp output
+            inputSignals[c] = isFinite(v2) ? v2 : v0;
           }
           sL = inputSignals[0];
           sR = inputSignals[1];
@@ -268,10 +280,18 @@ class VoiceProcessor extends AudioWorkletProcessor {
         const gainL = Math.cos(panRad) * voice.volume * envLevel;
         const gainR = Math.sin(panRad) * voice.volume * envLevel;
 
-        channelL[i] += sL * gainL;
-        if (channelR) channelR[i] += sR * gainR;
+        const outL = sL * gainL;
+        const outR = sR * gainR;
+
+        // Final output safety clamp to avoid digital clipping/NaN
+        channelL[i] += isFinite(outL) ? Math.max(-2, Math.min(2, outL)) : 0;
+        if (channelR) channelR[i] += isFinite(outR) ? Math.max(-2, Math.min(2, outR)) : 0;
 
         voice.position += voice.speed;
+        if (isNaN(voice.position)) {
+          voice.finished = true;
+          break;
+        }
       }
 
       if (!voice.finished) {
