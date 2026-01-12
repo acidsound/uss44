@@ -4,6 +4,8 @@
 
 ![USS44 Sampler](https://github.com/uss44/uss44/raw/main/public/preview.png) *(Placeholder: Replace with actual screenshot after deployment)*
 
+## 🚀 [Try USS44 Live Now!](https://acidsound.github.io/uss44/)
+
 ### [📖 Read the Full User Manual](./USER_MANUAL.md)
 
 ## ✨ Key Features
