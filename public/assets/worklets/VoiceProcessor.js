@@ -26,10 +26,40 @@ class VoiceProcessor extends AudioWorkletProcessor {
           this.updateVoiceParams(data);
           break;
         case 'STOP_ALL':
-          this.voices = [];
+          this.stopAllVoices();
           break;
       }
     };
+  }
+
+  stopAllVoices() {
+    const sr = sampleRate || 44100;
+    for (const voice of this.voices) {
+      if (!voice.finished) {
+        // To avoid digital clicks, we don't just cut to zero.
+        // We put the voice in a very fast release phase (10ms).
+
+        // Calculate current envelope level to use as the starting point for fast release
+        let currentEnv = 0;
+        const { attack, decay, sustain, release, phase, t, releaseT, levelAtRelease } = voice.envelope;
+
+        if (phase === 'attack') {
+          currentEnv = t / Math.max(0.001, attack);
+        } else if (phase === 'decay') {
+          currentEnv = 1 - ((t / Math.max(0.001, decay)) * (1 - sustain));
+        } else if (phase === 'sustain') {
+          currentEnv = sustain;
+        } else if (phase === 'release') {
+          const progress = releaseT / Math.max(0.005, release);
+          currentEnv = levelAtRelease * (1 - progress);
+        }
+
+        voice.envelope.phase = 'release';
+        voice.envelope.levelAtRelease = Math.max(0, currentEnv);
+        voice.envelope.releaseT = 0;
+        voice.envelope.release = 0.01; // 10ms is long enough to avoid clicks but fast enough to feel instant
+      }
+    }
   }
 
   updateVoiceBoundaries(data) {
