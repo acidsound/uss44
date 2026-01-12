@@ -1,93 +1,129 @@
-
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <title>USS44 Social Sampler</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              retro: {
-                bg: '#121214',      // Slightly lifted from 0a0a0c
-                panel: '#1e1e22',   // More distinct panel color
-                pad: '#2d2d32',     // Lighter pad base
-                accent: '#ff1e56',  // More vibrant red for better visibility
-                highlight: '#ff4d7d',
-                text: '#ffffff',    // Pure white for primary text
-                muted: '#a0a0ab',   // Clearer muted text
-                screen: '#2a0a10',  // Brighter screen background for contrast
-              },
-              bank: {
-                a: '#ff6b3d',
-                b: '#33e1ff',
-                c: '#bf7aff',
-                d: '#33ff8a',
-              }
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>USS44 Social Sampler</title>
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap"
+    rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            retro: {
+              bg: '#121214',      // Slightly lifted from 0a0a0c
+              panel: '#1e1e22',   // More distinct panel color
+              pad: '#2d2d32',     // Lighter pad base
+              accent: '#ff1e56',  // More vibrant red for better visibility
+              highlight: '#ff4d7d',
+              text: '#ffffff',    // Pure white for primary text
+              muted: '#a0a0ab',   // Clearer muted text
+              screen: '#2a0a10',  // Brighter screen background for contrast
             },
-            fontFamily: {
-              mono: ['"JetBrains Mono"', '"Courier New"', 'Courier', 'monospace'],
-              sans: ['Inter', 'system-ui', 'sans-serif'],
-            },
-            animation: {
-              'pulse-fast': 'pulse 0.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            bank: {
+              a: '#ff6b3d',
+              b: '#33e1ff',
+              c: '#bf7aff',
+              d: '#33ff8a',
             }
           },
+          fontFamily: {
+            mono: ['"JetBrains Mono"', '"Courier New"', 'Courier', 'monospace'],
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+          animation: {
+            'pulse-fast': 'pulse 0.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+          }
         },
-      }
-    </script>
-    <style>
-      :root {
-        --app-height: 100dvh;
-      }
-      html, body {
-        height: var(--app-height);
-        width: 100%;
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-        background-color: #121214;
-        color: #ffffff;
-        position: fixed;
-        -webkit-touch-callout: none;
-        -webkit-user-select: none;
-        user-select: none;
-        -webkit-tap-highlight-color: transparent;
-        touch-action: none;
-        font-family: 'Inter', system-ui, sans-serif;
-      }
-      #root {
-        height: 100%;
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-      }
-      input, textarea {
-        -webkit-user-select: text;
-        user-select: text;
-        touch-action: manipulation;
-        font-family: 'Inter', system-ui, sans-serif;
-      }
-      .no-scrollbar::-webkit-scrollbar { display: none; }
-      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-      ::-webkit-scrollbar { width: 6px; }
-      ::-webkit-scrollbar-track { background: #121214; }
-      ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
-      ::-webkit-scrollbar-thumb:hover { background: #ff1e56; }
-      
-      /* Subtle Glow Effect for active elements */
-      .glow-red { text-shadow: 0 0 8px rgba(255, 30, 86, 0.6); }
-      .bg-glow-red { box-shadow: 0 0 15px rgba(255, 30, 86, 0.3); }
-    </style>
+      },
+    }
+  </script>
+  <style>
+    :root {
+      --app-height: 100dvh;
+    }
+
+    html,
+    body {
+      height: var(--app-height);
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #121214;
+      color: #ffffff;
+      position: fixed;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: none;
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+
+    #root {
+      height: 100%;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    input,
+    textarea {
+      -webkit-user-select: text;
+      user-select: text;
+      touch-action: manipulation;
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #121214;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #3f3f46;
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #ff1e56;
+    }
+
+    /* Subtle Glow Effect for active elements */
+    .glow-red {
+      text-shadow: 0 0 8px rgba(255, 30, 86, 0.6);
+    }
+
+    .bg-glow-red {
+      box-shadow: 0 0 15px rgba(255, 30, 86, 0.3);
+    }
+  </style>
 </head>
-  <body>
-    <div id="root"></div>
+
+<body>
+  <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>
+
 </html>
