@@ -6,12 +6,12 @@ import { PAD_COLORS, SAMPLE_SET_URL } from '../constants';
 import { dbService } from '../services/dbService';
 
 interface PadState {
-  pads: Record<string, Pad>; 
+  pads: Record<string, Pad>;
   currentBank: BankId;
   selectedPadId: string;
   isHydrating: boolean;
   sampleLibrary: SampleMetadata[];
-  
+
   initPads: () => Promise<void>;
   resetPads: () => void;
   setBank: (bank: BankId) => void;
@@ -20,7 +20,7 @@ interface PadState {
   loadSample: (index: number, url: string, name: string) => Promise<void>;
   triggerPad: (index: number, velocity?: number, pitchOverrideMultiplier?: number, startTime?: number) => void;
   stopPad: (index: number) => void;
-  
+
   // Helpers for Project Service
   setPadsFromData: (pads: Record<string, Pad>) => void;
 }
@@ -57,7 +57,7 @@ const createBasePads = () => {
         pitch: 1.0,
         pan: 0,
         cutoff: 20000,
-        resonance: 1, 
+        resonance: 1,
         start: 0,
         end: 1,
         viewStart: 0,
@@ -80,17 +80,17 @@ export const usePadStore = create<PadState>((set, get) => ({
   sampleLibrary: [],
 
   resetPads: () => {
-      set({ pads: createBasePads() });
+    set({ pads: createBasePads() });
   },
 
   setPadsFromData: (newPads) => {
-      set({ pads: newPads });
+    set({ pads: newPads });
   },
 
   initPads: async () => {
     set({ isHydrating: true });
     await dbService.init();
-    
+
     const { audioContext, loadSampleToWorklet } = useAudioStore.getState();
 
     let library = await dbService.getSampleMetadata();
@@ -140,9 +140,19 @@ export const usePadStore = create<PadState>((set, get) => ({
             const stored = sampleMap.get(mergedPad.sampleId)!;
             if (audioContext) {
               try {
-                const decoded = await audioContext.decodeAudioData(stored.data.slice(0));
+                let decoded: AudioBuffer;
+                try {
+                  // Try standard decoding (for WAV/MP3 files from library)
+                  decoded = await audioContext.decodeAudioData(stored.data.slice(0));
+                } catch (decodeErr) {
+                  // Fallback: Assume raw PCM Float32 data (for recordings and imported projects)
+                  const floatData = new Float32Array(stored.data);
+                  decoded = audioContext.createBuffer(1, floatData.length, audioContext.sampleRate);
+                  decoded.copyToChannel(floatData, 0);
+                }
+
                 mergedPad.buffer = decoded;
-                if (!mergedPad.waveform) {
+                if (!mergedPad.waveform || mergedPad.waveform.length === 0) {
                   mergedPad.waveform = generateWaveform(decoded);
                   await dbService.savePadConfig(config.id, mergedPad);
                 }
@@ -171,27 +181,27 @@ export const usePadStore = create<PadState>((set, get) => ({
     if (!pad) return;
 
     let finalUpdates = { ...updates };
-    
+
     // Time manipulation logic (preserve playback progress on slice change)
     if (updates.start !== undefined || updates.end !== undefined || updates.pitch !== undefined) {
       const audioCtx = useAudioStore.getState().audioContext;
       const currentPadState = { ...pad, ...updates };
-      
+
       if (audioCtx && currentPadState.buffer && pad.lastTriggerTime !== undefined && pad.lastTriggerDuration !== undefined) {
-          const now = audioCtx.currentTime;
-          const oldDuration = pad.lastTriggerDuration;
-          const elapsed = now - pad.lastTriggerTime;
-          const newDuration = (currentPadState.buffer.duration * (currentPadState.end - currentPadState.start)) / currentPadState.pitch;
-          
-          if (oldDuration > 0) {
-              const progress = elapsed / oldDuration;
-              const newLastTriggerTime = now - (progress * newDuration);
-              finalUpdates = {
-                  ...finalUpdates,
-                  lastTriggerTime: newLastTriggerTime,
-                  lastTriggerDuration: newDuration
-              };
-          }
+        const now = audioCtx.currentTime;
+        const oldDuration = pad.lastTriggerDuration;
+        const elapsed = now - pad.lastTriggerTime;
+        const newDuration = (currentPadState.buffer.duration * (currentPadState.end - currentPadState.start)) / currentPadState.pitch;
+
+        if (oldDuration > 0) {
+          const progress = elapsed / oldDuration;
+          const newLastTriggerTime = now - (progress * newDuration);
+          finalUpdates = {
+            ...finalUpdates,
+            lastTriggerTime: newLastTriggerTime,
+            lastTriggerDuration: newDuration
+          };
+        }
       }
     }
 
@@ -221,16 +231,16 @@ export const usePadStore = create<PadState>((set, get) => ({
       const waveform = generateWaveform(audioBuffer);
       loadSampleToWorklet(sampleId, audioBuffer);
       const id = `${currentBank}-${index}`;
-      
-      const updatedPad: Pad = { 
-        ...pads[id], 
+
+      const updatedPad: Pad = {
+        ...pads[id],
         sampleId,
         sampleName: name,
         buffer: audioBuffer,
         waveform,
         triggerMode: 'ONE_SHOT'
       };
-      
+
       set(state => ({ pads: { ...state.pads, [id]: updatedPad } }));
       await dbService.saveSample({ id: sampleId, name: name, data: originalArrayBuffer, waveform });
       await dbService.savePadConfig(id, updatedPad);
@@ -248,7 +258,7 @@ export const usePadStore = create<PadState>((set, get) => ({
     if (pad && pad.sampleId && pad.buffer && audioContext) {
       const finalPitch = pad.pitch * pitchOverrideMultiplier;
       const duration = (pad.buffer.duration * (pad.end - pad.start)) / finalPitch;
-      
+
       triggerPad({
         padId: id,
         sampleId: pad.sampleId,
@@ -261,7 +271,7 @@ export const usePadStore = create<PadState>((set, get) => ({
         triggerMode: pad.triggerMode,
         cutoff: pad.cutoff,
         resonance: pad.resonance,
-        startTime: startTime || audioContext.currentTime 
+        startTime: startTime || audioContext.currentTime
       });
 
       set(state => ({
