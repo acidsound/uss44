@@ -197,6 +197,13 @@ export const PadGrid: React.FC<PadGridProps> = ({
         // Check if this pad is being held by ANY interaction
         const isHeldLocally = Array.from(activeInteractionsRef.current.values()).includes(idx);
 
+        // Mute/Solo Logic for dimming
+        const isMuted = pad?.mute;
+        const isSoloed = pad?.solo;
+        const allPadsValues = Object.values(pads);
+        const anySoloed = allPadsValues.some(p => p.solo);
+        const isEffectivelySilenced = !isSequenceMode && (isMuted || (anySoloed && !isSoloed));
+
         // Dynamic Class Construction
         let bgClass = '';
         let borderClass = '';
@@ -250,14 +257,15 @@ export const PadGrid: React.FC<PadGridProps> = ({
               borderClass = 'border-zinc-800/80 hover:border-zinc-600';
             }
           }
+        }
 
-          if (isTriggeredBySeq) {
-            // Seq Trigger in Perform Mode
-            ringClass = 'ring-4 ring-retro-accent/60 z-20';
-            bgClass = 'bg-retro-accent/20';
-            shadowClass = 'shadow-[0_0_20px_rgba(255,30,86,0.4)]';
-            borderClass = 'border-retro-accent';
-          }
+        const opacityClass = isEffectivelySilenced ? 'opacity-30 grayscale' : 'opacity-100';
+        if (isTriggeredBySeq) {
+          // Seq Trigger in Perform Mode
+          ringClass = 'ring-4 ring-retro-accent/60 z-20';
+          bgClass = 'bg-retro-accent/20';
+          shadowClass = 'shadow-[0_0_20px_rgba(255,30,86,0.4)]';
+          borderClass = 'border-retro-accent';
         }
 
         // Opacity / Grayscale
@@ -277,12 +285,19 @@ export const PadGrid: React.FC<PadGridProps> = ({
               border-2 active:shadow-none active:translate-x-[2px] active:translate-y-[2px]
               w-full h-full min-h-0 min-w-0
               ${bgClass} ${borderClass} ${shadowClass} ${ringClass}
-              ${isDimmed ? 'opacity-30 grayscale' : ''}
+              ${(isDimmed || isEffectivelySilenced) ? 'opacity-30 grayscale' : 'opacity-100'}
               ${isTriggeredBySeq ? 'scale-[0.98]' : ''}
               ${isHeldLocally && !isSequenceMode ? 'translate-x-[1px] translate-y-[1px] shadow-none brightness-110' : ''}
               ${!isSequenceMode && !isUltraSampleMode ? 'shadow-[4px_4px_0_0_rgba(0,0,0,0.4)]' : ''}
             `}
           >
+            {/* Solo/Mute Indicators */}
+            {!isSequenceMode && (
+              <div className="absolute top-1 right-1 flex gap-1 pointer-events-none">
+                {isSoloed && <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_5px_#f59e0b] animate-pulse" />}
+                {isMuted && <div className="w-2 h-2 rounded-full bg-retro-accent shadow-[0_0_5px_#ff1e56]" />}
+              </div>
+            )}
             {/* LED Indicator */}
             <div className={`absolute top-2 left-2 w-2 h-2 rounded-full border border-black/50 shadow-sm transition-colors duration-75
               ${isSequenceMode

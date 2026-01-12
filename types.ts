@@ -31,7 +31,7 @@ export interface Pad {
   bankId: BankId;
   sampleId: string | null;
   sampleName?: string; // The user-editable name for the sample on this pad
-  
+
   // Parameters
   volume: number;      // 0-2
   pitch: number;       // playbackRate (0.1 - 4.0)
@@ -42,7 +42,7 @@ export interface Pad {
   end: number;         // 0-1
   envelope: Envelope;
   triggerMode: TriggerMode;
-  
+
   // View/Zoom state
   viewStart: number;   // 0-1 (for waveform zoom persistence)
   viewEnd: number;     // 0-1 (for waveform zoom persistence)
@@ -55,6 +55,8 @@ export interface Pad {
   lastTriggerTime?: number;
   lastTriggerDuration?: number;
   isHeld?: boolean; // Track if the pad is currently pressed/held
+  mute?: boolean;
+  solo?: boolean;
 }
 
 export interface StepData {
@@ -70,7 +72,7 @@ export interface DigItem {
   thumbnail: string;
   title: string;
   duration: string;
-  audioUrl: string; 
+  audioUrl: string;
   waveform?: number[];
 }
 

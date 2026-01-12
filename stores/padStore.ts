@@ -20,6 +20,9 @@ interface PadState {
   loadSample: (index: number, url: string, name: string) => Promise<void>;
   triggerPad: (index: number, velocity?: number, pitchOverrideMultiplier?: number, startTime?: number) => void;
   stopPad: (index: number) => void;
+  toggleMute: (index: number) => void;
+  toggleSolo: (index: number) => void;
+  clearPad: (index: number) => void;
 
   // Helpers for Project Service
   setPadsFromData: (pads: Record<string, Pad>) => void;
@@ -65,7 +68,9 @@ const createBasePads = () => {
         envelope: { ...DEFAULT_ENVELOPE },
         triggerMode: 'ONE_SHOT',
         color: PAD_COLORS[i],
-        isHeld: false
+        isHeld: false,
+        mute: false,
+        solo: false
       };
     }
   });
@@ -218,6 +223,39 @@ export const usePadStore = create<PadState>((set, get) => ({
     }
   },
 
+  toggleMute: (index) => {
+    const { pads, currentBank } = get();
+    const id = `${currentBank}-${index}`;
+    const pad = pads[id];
+    if (pad) {
+      const updates = { mute: !pad.mute };
+      set(state => ({ pads: { ...state.pads, [id]: { ...pad, ...updates } } }));
+      dbService.savePadConfig(id, updates);
+    }
+  },
+
+  toggleSolo: (index) => {
+    const { pads, currentBank } = get();
+    const id = `${currentBank}-${index}`;
+    const pad = pads[id];
+    if (pad) {
+      const updates = { solo: !pad.solo };
+      set(state => ({ pads: { ...state.pads, [id]: { ...pad, ...updates } } }));
+      dbService.savePadConfig(id, updates);
+    }
+  },
+
+  clearPad: (index) => {
+    const { pads, currentBank } = get();
+    const id = `${currentBank}-${index}`;
+    const basePads = createBasePads();
+    const defaultPad = basePads[id];
+    if (defaultPad) {
+      set(state => ({ pads: { ...state.pads, [id]: defaultPad } }));
+      dbService.savePadConfig(id, defaultPad);
+    }
+  },
+
   loadSample: async (index, url, name) => {
     const { pads, currentBank } = get();
     const { audioContext, loadSampleToWorklet } = useAudioStore.getState();
@@ -256,6 +294,13 @@ export const usePadStore = create<PadState>((set, get) => ({
     const pad = pads[id];
 
     if (pad && pad.sampleId && pad.buffer && audioContext) {
+      // Mute/Solo Logic
+      if (pad.mute) return;
+
+      const allPads = Object.values(pads);
+      const anySoloed = allPads.some(p => p.solo);
+      if (anySoloed && !pad.solo) return;
+
       const finalPitch = pad.pitch * pitchOverrideMultiplier;
       const duration = (pad.buffer.duration * (pad.end - pad.start)) / finalPitch;
 

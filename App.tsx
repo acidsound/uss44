@@ -1,6 +1,5 @@
-
 import React, { useEffect, useRef, useState } from 'react';
-import { Play, Square, Menu, Activity, Mic } from 'lucide-react';
+import { Play, Square, Menu, Activity, Mic, ChevronRight, ChevronLeft } from 'lucide-react';
 
 // Stores
 import { useAudioStore } from './stores/audioStore';
@@ -18,6 +17,7 @@ import { ParametersPanel } from './components/ParametersPanel';
 import { SequencePanel } from './components/SequencePanel';
 import { BpmModal } from './components/BpmModal';
 import { SettingsMenu } from './components/SettingsMenu';
+import { PadMenu } from './components/PadMenu';
 import { AppMode, BankId } from './types';
 import { STEPS_PER_BAR } from './constants';
 
@@ -35,6 +35,8 @@ const App: React.FC = () => {
   const [isUltraSampleMode, setIsUltraSampleMode] = useState(false);
   const [showBpmModal, setShowBpmModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showPadMenu, setShowPadMenu] = useState(false);
+  const [padMenuAnchor, setPadMenuAnchor] = useState<DOMRect | undefined>(undefined);
 
   const { initialize, resume, initialized, initMic, closeMic, startRecording, stopRecording, loadSampleToWorklet } = useAudioStore((state) => state);
   const { initPads, currentBank, setBank, selectedPadId, selectPad, triggerPad, stopPad, updatePad, isHydrating } = usePadStore((state) => state);
@@ -184,7 +186,7 @@ const App: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [mode, currentBank, selectedPadIndex, togglePlay, selectPad, triggerPad, stopPad, toggleStep, setSelectedStepIndex, isUltraSampleMode]);
+  }, [mode, currentBank, selectedPadIndex, togglePlay, selectPad, triggerPad, stopPad, toggleStep, setSelectedStepIndex, isUltraSampleMode, isEditMode, handleUltraRecordStart, handleUltraRecordStop]);
 
   useEffect(() => {
     const startApp = async () => {
@@ -202,7 +204,7 @@ const App: React.FC = () => {
       window.removeEventListener('click', handleUserGesture);
       window.removeEventListener('resize', handleResize);
     };
-  }, [initialized]);
+  }, [initialized, initPads, initSequencer, initialize, resume]);
 
   // UltraSample Mode Logic - Toggle
   const toggleUltraSampleMode = async () => {
@@ -251,9 +253,6 @@ const App: React.FC = () => {
     } else {
       if (timerRef.current) cancelAnimationFrame(timerRef.current);
       timerRef.current = undefined;
-      // We don't reset step to -1 on pause, typically, but for this style of sequencer:
-      // If we want to resume from where we left off, we shouldn't reset.
-      // But if we want stop behavior:
       setStep(-1);
     }
     return () => { if (timerRef.current) cancelAnimationFrame(timerRef.current); timerRef.current = undefined; }
@@ -293,6 +292,12 @@ const App: React.FC = () => {
       {isHydrating && <LoadingOverlay />}
       {showBpmModal && <BpmModal onClose={() => setShowBpmModal(false)} />}
       {showSettings && <SettingsMenu onClose={() => setShowSettings(false)} />}
+      <PadMenu
+        padIndex={selectedPadIndex}
+        isOpen={showPadMenu}
+        onClose={() => setShowPadMenu(false)}
+        anchorRect={padMenuAnchor}
+      />
 
       {isUltraSampleMode && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[60] bg-retro-accent text-white px-4 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-[0.2em] shadow-[0_0_20px_#ff1e56] animate-pulse pointer-events-none">
@@ -342,7 +347,17 @@ const App: React.FC = () => {
               <span className="leading-none text-white">{currentBank}</span>
             </button>
 
-            <div id="lcd-pad" className="flex flex-col items-center gap-0.5"><span className="text-zinc-500 text-[8px] tracking-widest">PAD</span><span className="leading-none text-white">{selectedPadIndex + 1}</span></div>
+            <button
+              id="lcd-pad"
+              onClick={(e) => {
+                setPadMenuAnchor(e.currentTarget.getBoundingClientRect());
+                setShowPadMenu(true);
+              }}
+              className="flex flex-col items-center gap-0.5 hover:bg-white/10 p-1 rounded transition-colors active:scale-95"
+            >
+              <span className="text-zinc-500 text-[8px] tracking-widest">PAD</span>
+              <span className="leading-none text-white">{selectedPadIndex + 1}</span>
+            </button>
           </div>
           {!isLandscape && <div id="header-visualizer" className="absolute right-0 top-0 h-full w-32 opacity-50"><Visualizer /></div>}
         </div>
@@ -396,8 +411,6 @@ const App: React.FC = () => {
 
         <div id="workspace-container" className={`flex-1 flex ${isLandscape ? 'flex-row' : 'flex-col'} overflow-hidden min-h-0`}>
           <div id="pad-grid-container" className={`${isLandscape ? 'w-1/2 p-6' : 'w-full flex-none'} flex flex-col justify-center bg-retro-bg overflow-hidden relative`}>
-
-
             <div className={`${isLandscape ? 'w-full h-full' : 'w-full max-w-[calc(100dvh-180px)] aspect-square p-2 mx-auto'}`}>
               <PadGrid
                 appMode={mode}
@@ -421,16 +434,5 @@ const App: React.FC = () => {
     </div>
   );
 };
-
-// Helper for dynamic colors in inline styles if Tailwind classes aren't enough or need specificity
-const getBankColor = (bank: string) => {
-  switch (bank) {
-    case 'A': return '#ff6b3d';
-    case 'B': return '#33e1ff';
-    case 'C': return '#bf7aff';
-    case 'D': return '#33ff8a';
-    default: return '#ff6b3d';
-  }
-}
 
 export default App;
