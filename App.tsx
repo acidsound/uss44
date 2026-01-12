@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Play, Square, Settings, Activity, Mic } from 'lucide-react';
+import { Play, Square, Menu, Activity, Mic } from 'lucide-react';
 
 // Stores
 import { useAudioStore } from './stores/audioStore';
@@ -31,6 +31,7 @@ const KEY_TO_PAD: Record<string, number> = {
 const App: React.FC = () => {
   const [mode, setMode] = useState<AppMode>(AppMode.PERFORM);
   const [isLandscape, setIsLandscape] = useState(window.innerWidth > window.innerHeight);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [isUltraSampleMode, setIsUltraSampleMode] = useState(false);
   const [showBpmModal, setShowBpmModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -142,8 +143,14 @@ const App: React.FC = () => {
         }
 
         if (mode === AppMode.SEQUENCE) {
-          toggleStep(currentBank, selectedPadIndex, padIdx);
-          setSelectedStepIndex(padIdx);
+          if (isEditMode) {
+            setSelectedStepIndex(padIdx);
+          } else {
+            toggleStep(currentBank, selectedPadIndex, padIdx);
+            setSelectedStepIndex(padIdx);
+          }
+        } else if (isEditMode) {
+          selectPad(padIdx);
         } else {
           selectPad(padIdx);
           triggerPad(padIdx);
@@ -163,7 +170,7 @@ const App: React.FC = () => {
           return;
         }
 
-        if (mode !== AppMode.SEQUENCE) {
+        if (mode !== AppMode.SEQUENCE && !isEditMode) {
           stopPad(padIdx);
         }
       }
@@ -298,18 +305,18 @@ const App: React.FC = () => {
         />
       )}
 
-      <header id="app-header" className={`${isLandscape ? 'w-14 h-full border-r' : 'h-14 border-b'} flex-none border-zinc-800 bg-zinc-900/50 backdrop-blur-md flex ${isLandscape ? 'flex-col' : 'flex-row'} items-center justify-between z-30 px-3`}>
+      <header id="app-header" className={`${isLandscape ? 'w-12 h-full border-r' : 'h-12 border-b'} flex-none border-zinc-800 bg-zinc-900/50 backdrop-blur-md flex ${isLandscape ? 'flex-col' : 'flex-row'} items-center justify-between z-30 px-3`}>
         <button
           id="header-logo"
           onClick={toggleUltraSampleMode}
-          className={`flex flex-col items-center gap-0 cursor-pointer group active:scale-95 transition-transform p-2 ${isUltraSampleMode ? 'scale-110' : ''}`}
+          className={`flex flex-row items-center gap-1 cursor-pointer group active:scale-95 transition-transform ${isUltraSampleMode ? 'scale-110' : ''}`}
         >
           {isUltraSampleMode ? (
-            <Mic className="w-5 h-5 text-retro-accent animate-pulse mb-1 shadow-[0_0_10px_#ff1e56]" />
+            <Mic className="w-5 h-5 text-retro-accent animate-pulse shadow-[0_0_10px_#ff1e56]" />
           ) : (
-            <Activity className="w-5 h-5 text-retro-accent group-hover:text-white transition-colors mb-1" />
+            <Activity className="w-5 h-5 text-retro-accent group-hover:text-white transition-colors" />
           )}
-          {!isLandscape && <h1 className="text-lg font-extrabold tracking-tighter text-white">USS<span className="text-retro-accent">44</span></h1>}
+          {!isLandscape && <h1 className="text-base font-extrabold tracking-tighter text-white">USS<span className="text-retro-accent">44</span></h1>}
         </button>
 
         <div id="header-lcd" className={`${isLandscape ? 'flex-col h-auto w-full gap-4' : 'flex-1 max-w-md mx-6 h-10'} bg-black/60 rounded-lg border border-white/5 flex items-center px-4 justify-between font-sans text-[11px] text-retro-accent relative overflow-hidden shadow-inner`}>
@@ -342,21 +349,40 @@ const App: React.FC = () => {
           <button
             id="header-settings-btn"
             onClick={() => setShowSettings(true)}
-            className="p-2 text-zinc-400 hover:text-white transition-all hover:rotate-90 duration-300 active:scale-95"
+            className="p-2 text-zinc-400 hover:text-white transition-all duration-300 active:scale-95"
           >
-            <Settings size={20} />
+            <Menu size={20} />
           </button>
         </div>
       </header>
 
       <main id="app-main" className="flex-1 flex flex-col bg-retro-bg relative min-h-0 overflow-hidden">
-        <div id="mode-selector" className="flex-none h-8 border-b border-zinc-800/50 flex items-stretch bg-zinc-900/30">
+        <div id="mode-selector" className="flex-none h-6 border-b border-zinc-800/50 flex items-stretch bg-zinc-900/30">
           <div className="flex-1 flex items-stretch border-r border-zinc-800/50">
-            <button id="mode-dig-btn" onClick={() => setMode(AppMode.SAMPLE)} className={`flex-1 flex items-center justify-center text-[11px] font-extrabold uppercase transition-all tracking-wider ${mode === AppMode.SAMPLE ? 'bg-retro-accent text-white' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'}`}>Dig Library</button>
-            <button id="mode-perform-btn" onClick={() => setMode(AppMode.PERFORM)} className={`flex-1 flex items-center justify-center text-[11px] font-extrabold uppercase transition-all tracking-wider ${mode === AppMode.PERFORM ? 'bg-zinc-800/80 text-white' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'}`}>Perform</button>
+            <button
+              id="mode-dig-btn"
+              onClick={() => setMode(AppMode.SAMPLE)}
+              className={`flex-1 flex items-center justify-center text-[11px] font-extrabold uppercase transition-all tracking-wider ${mode === AppMode.SAMPLE ? 'bg-retro-accent text-white' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'}`}
+            >
+              Dig Library
+            </button>
+            <button
+              id="mode-perform-btn"
+              onClick={() => {
+                setIsEditMode(!isEditMode);
+                if (mode === AppMode.SAMPLE) setMode(AppMode.PERFORM);
+              }}
+              className={`flex-1 flex items-center justify-center text-[11px] font-extrabold uppercase transition-all tracking-wider ${!isEditMode ? 'bg-zinc-800/80 text-white' : 'bg-retro-accent text-white shadow-inner'}`}
+            >
+              {isEditMode ? 'Edit' : 'Perform'}
+            </button>
           </div>
           <div className="flex items-stretch">
-            <button id="mode-sequence-btn" onClick={() => setMode(mode === AppMode.SEQUENCE ? AppMode.PERFORM : AppMode.SEQUENCE)} className={`w-20 border-r border-zinc-800/50 flex flex-col items-center justify-center transition-all ${mode === AppMode.SEQUENCE ? 'bg-retro-accent text-white shadow-lg' : 'bg-black/20 text-zinc-500 hover:text-zinc-300'}`}>
+            <button
+              id="mode-sequence-btn"
+              onClick={() => setMode(mode === AppMode.SEQUENCE ? AppMode.PERFORM : AppMode.SEQUENCE)}
+              className={`w-20 border-r border-zinc-800/50 flex flex-row gap-2 items-center justify-center transition-all ${mode === AppMode.SEQUENCE ? 'bg-retro-accent text-white shadow-lg' : 'bg-black/20 text-zinc-500 hover:text-zinc-300'}`}
+            >
               <span className="text-[9px] uppercase font-extrabold mb-0.5 tracking-tighter">Step</span>
               <span className={`text-xs font-extrabold ${mode === AppMode.SEQUENCE ? 'text-white' : 'text-retro-accent'}`}>{currentStep > -1 ? currentStep + 1 : '--'}</span>
             </button>
@@ -369,28 +395,11 @@ const App: React.FC = () => {
         <div id="workspace-container" className={`flex-1 flex ${isLandscape ? 'flex-row' : 'flex-col'} overflow-hidden min-h-0`}>
           <div id="pad-grid-container" className={`${isLandscape ? 'w-1/2 p-6' : 'w-full flex-none'} flex flex-col justify-center bg-retro-bg overflow-hidden relative`}>
 
-            {/* Bank Selector Bar */}
-            <div className={`${isLandscape ? 'w-full mb-4' : 'w-full max-w-[calc(100dvh-180px)] mx-auto px-4'} flex items-center justify-between`}>
-              <div className="flex items-center gap-1 bg-black/40 p-1 rounded-lg border border-white/5">
-                {(['A', 'B', 'C', 'D'] as BankId[]).map(bank => (
-                  <button
-                    key={bank}
-                    onClick={() => setBank(bank)}
-                    className={`w-8 h-6 flex items-center justify-center rounded text-[10px] font-extrabold transition-all ${currentBank === bank ? `bg-bank-${bank.toLowerCase()} text-white shadow-lg scale-110` : 'text-zinc-600 hover:text-zinc-400 hover:bg-white/5'}`}
-                    style={currentBank === bank ? { backgroundColor: getBankColor(bank) } : {}}
-                  >
-                    {bank}
-                  </button>
-                ))}
-              </div>
-              <div className="text-[9px] font-extrabold uppercase text-zinc-600 tracking-widest">
-                Bank Select
-              </div>
-            </div>
 
             <div className={`${isLandscape ? 'w-full h-full' : 'w-full max-w-[calc(100dvh-180px)] aspect-square p-2 mx-auto'}`}>
               <PadGrid
                 appMode={mode}
+                isEditMode={isEditMode}
                 isUltraSampleMode={isUltraSampleMode}
                 onUltraRecordStart={handleUltraRecordStart}
                 onUltraRecordStop={handleUltraRecordStop}

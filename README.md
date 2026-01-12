@@ -4,6 +4,8 @@
 
 ![USS44 Sampler](https://github.com/uss44/uss44/raw/main/public/preview.png) *(Placeholder: Replace with actual screenshot after deployment)*
 
+### [📖 Read the Full User Manual](./USER_MANUAL.md)
+
 ## ✨ Key Features
 
 - **🚀 UltraSample Mode**: Fast, intuitive recording directly to pads. One-touch sampling with automatic silence cropping.

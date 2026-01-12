@@ -27,49 +27,49 @@ export const ParametersPanel: React.FC<ParametersPanelProps> = ({ isLandscape, i
     <div id="parameters-panel" className="flex flex-col h-full overflow-hidden relative">
       {/* Rename Modal */}
       {showRenameModal && activePad && (
-        <RenameModal 
-          initialName={activePad.sampleName || ''} 
+        <RenameModal
+          initialName={activePad.sampleName || ''}
           onSave={handleRenameSave}
           onClose={() => setShowRenameModal(false)}
         />
       )}
 
       {/* Panel Header */}
-      <div id="parameters-header" className="h-10 border-b border-zinc-800/50 flex items-center px-4 justify-between bg-zinc-800/30 flex-none">
+      <div id="parameters-header" className="h-6 border-b border-zinc-800/50 flex items-center px-4 justify-between bg-zinc-800/30 flex-none">
         <div className="flex items-stretch h-full gap-2">
-          <div className="flex items-center gap-2 text-[11px] font-extrabold text-retro-accent uppercase tracking-tighter mr-4">
-            <Sliders size={14} /> {isUltraSampleMode ? 'Live Input Monitor' : 'Parameters'}
+          <div className="flex items-center gap-1 text-[11px] font-bold text-retro-accent uppercase tracking-tighter">
+            <Sliders size={14} /> {isUltraSampleMode ? 'Live Input Monitor' : 'Params'}
           </div>
           {!isLandscape && !isUltraSampleMode && (
             <div id="submode-toggles" className="flex items-stretch bg-black/20 rounded-t-lg overflow-hidden">
-              <button 
+              <button
                 id="toggle-chop"
-                onClick={() => setEditSubMode('CHOP')} 
-                className={`px-4 flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-widest transition-all ${editSubMode === 'CHOP' ? 'text-white bg-retro-accent/20 border-b-2 border-retro-accent' : 'text-zinc-500 hover:text-white'}`}
+                onClick={() => setEditSubMode('CHOP')}
+                className={`w-16 flex items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-widest transition-all ${editSubMode === 'CHOP' ? 'text-white bg-retro-accent/20 border-b-2 border-retro-accent' : 'text-zinc-500 hover:text-white'}`}
               >
                 <Scissors size={12} /> Chop
               </button>
-              <button 
+              <button
                 id="toggle-params"
-                onClick={() => setEditSubMode('PARAMS')} 
-                className={`px-4 flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-widest transition-all ${editSubMode === 'PARAMS' ? 'text-white bg-retro-accent/20 border-b-2 border-retro-accent' : 'text-zinc-500 hover:text-white'}`}
+                onClick={() => setEditSubMode('PARAMS')}
+                className={`w-16 flex items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-widest transition-all ${editSubMode === 'PARAMS' ? 'text-white bg-retro-accent/20 border-b-2 border-retro-accent' : 'text-zinc-500 hover:text-white'}`}
               >
                 <Settings2 size={12} /> Fx
               </button>
             </div>
           )}
         </div>
-        
+
         {/* Pad Naming Trigger */}
         {!isUltraSampleMode && (
-          <button 
+          <button
             id="pad-naming-container"
-            onClick={() => setShowRenameModal(true)} 
-            className="flex items-center gap-3 border-l border-zinc-800/50 pl-4 h-full cursor-pointer hover:bg-white/5 transition-colors group outline-none"
+            onClick={() => setShowRenameModal(true)}
+            className="flex items-center gap-1 border-l border-zinc-800/50 pl-2 h-full cursor-pointer hover:bg-white/5 transition-colors group outline-none"
           >
             <Edit2 size={12} className="text-zinc-500 group-hover:text-white transition-colors flex-none" />
-            <span 
-              className="text-[11px] font-extrabold text-white w-28 uppercase truncate text-left group-hover:text-retro-accent transition-colors block"
+            <span
+              className="text-[11px] font-bold text-white w-28 uppercase truncate text-left group-hover:text-retro-accent transition-colors block"
             >
               {activePad?.sampleName || 'EMPTY'}
             </span>

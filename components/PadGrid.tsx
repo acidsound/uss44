@@ -7,6 +7,7 @@ import { Mic, Activity } from 'lucide-react';
 
 interface PadGridProps {
   appMode?: AppMode;
+  isEditMode?: boolean;
   isUltraSampleMode?: boolean;
   onUltraRecordStart?: (index: number) => void;
   onUltraRecordStop?: (index: number) => void;
@@ -21,6 +22,7 @@ type InteractionMap = Map<number | string, number>;
 
 export const PadGrid: React.FC<PadGridProps> = ({
   appMode = AppMode.PERFORM,
+  isEditMode = false,
   isUltraSampleMode = false,
   onUltraRecordStart,
   onUltraRecordStop
@@ -48,8 +50,14 @@ export const PadGrid: React.FC<PadGridProps> = ({
     if (isUltraSampleMode && onUltraRecordStart) {
       onUltraRecordStart(idx);
     } else if (isSequenceMode) {
-      toggleStep(currentBank, selectedPadIndex, idx);
-      setSelectedStepIndex(idx);
+      if (isEditMode) {
+        setSelectedStepIndex(idx);
+      } else {
+        toggleStep(currentBank, selectedPadIndex, idx);
+        setSelectedStepIndex(idx);
+      }
+    } else if (isEditMode) {
+      selectPad(idx);
     } else {
       selectPad(idx);
       triggerPad(idx);
@@ -64,7 +72,7 @@ export const PadGrid: React.FC<PadGridProps> = ({
 
     if (isUltraSampleMode && onUltraRecordStop) {
       onUltraRecordStop(idx);
-    } else if (!isSequenceMode) {
+    } else if (!isSequenceMode && !isEditMode) {
       stopPad(idx);
     }
 
@@ -158,13 +166,13 @@ export const PadGrid: React.FC<PadGridProps> = ({
       container.removeEventListener('touchend', onTouchEnd);
       container.removeEventListener('touchcancel', onTouchEnd);
     };
-  }, [currentBank, selectedPadIndex, isSequenceMode, isUltraSampleMode, onUltraRecordStart, onUltraRecordStop]);
+  }, [currentBank, selectedPadIndex, appMode, isEditMode, isSequenceMode, isUltraSampleMode, onUltraRecordStart, onUltraRecordStop]);
 
   return (
     <div
       ref={containerRef}
       id="pad-grid"
-      className="grid grid-cols-4 gap-2 w-full h-full touch-none"
+      className="grid grid-cols-4 grid-rows-4 gap-2 w-full h-full touch-none"
     >
       {Array.from({ length: 16 }).map((_, idx) => {
         const pad = pads[`${currentBank}-${idx}`];
@@ -267,6 +275,7 @@ export const PadGrid: React.FC<PadGridProps> = ({
             className={`
               relative transition-all duration-75 flex flex-col items-center justify-center overflow-hidden rounded-xl
               border-2 active:shadow-none active:translate-x-[2px] active:translate-y-[2px]
+              w-full h-full min-h-0 min-w-0
               ${bgClass} ${borderClass} ${shadowClass} ${ringClass}
               ${isDimmed ? 'opacity-30 grayscale' : ''}
               ${isTriggeredBySeq ? 'scale-[0.98]' : ''}
@@ -293,7 +302,7 @@ export const PadGrid: React.FC<PadGridProps> = ({
               </div>
             )}
 
-            <div className="flex flex-col items-center w-full px-2 pointer-events-none z-10">
+            <div className="flex flex-col items-center w-full px-2 pointer-events-none z-10 min-h-0 min-w-0">
               <span className={`font-extrabold text-[11px] uppercase tracking-tighter mb-1 ${isSelected || isActiveStep || isUltraSampleMode || isHeldLocally || isTriggeredBySeq || isPlayhead ? 'text-white' : 'text-zinc-500'}`}>
                 {isSequenceMode ? `S${idx + 1}` : `PAD ${idx + 1}`}
               </span>
