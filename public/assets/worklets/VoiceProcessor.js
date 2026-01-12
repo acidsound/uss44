@@ -25,6 +25,9 @@ class VoiceProcessor extends AudioWorkletProcessor {
         case 'UPDATE_PAD_PARAMS':
           this.updateVoiceParams(data);
           break;
+        case 'STOP_ALL':
+          this.voices = [];
+          break;
       }
     };
   }

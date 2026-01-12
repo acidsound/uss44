@@ -254,6 +254,7 @@ const App: React.FC = () => {
       if (timerRef.current) cancelAnimationFrame(timerRef.current);
       timerRef.current = undefined;
       setStep(-1);
+      useAudioStore.getState().stopAll();
     }
     return () => { if (timerRef.current) cancelAnimationFrame(timerRef.current); timerRef.current = undefined; }
   }, [isPlaying]);

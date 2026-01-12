@@ -22,6 +22,7 @@ interface AudioState {
   stopPad: (padId: string) => void;
   updatePadStartEnd: (padId: string, start: number, end: number) => void;
   updatePadParams: (padId: string, cutoff?: number, resonance?: number) => void;
+  stopAll: () => void;
 
   // Recording Actions
   initMic: () => Promise<void>;
@@ -150,6 +151,13 @@ export const useAudioStore = create<AudioState>((set, get) => ({
         type: 'UPDATE_PAD_PARAMS',
         data: { padId, cutoff, resonance }
       });
+    }
+  },
+
+  stopAll: () => {
+    const { workletNode } = get();
+    if (workletNode) {
+      workletNode.port.postMessage({ type: 'STOP_ALL' });
     }
   },
 
