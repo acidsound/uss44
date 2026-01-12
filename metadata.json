@@ -1,0 +1,7 @@
+{
+  "name": "USS44",
+  "description": "A retro-futuristic social media sampler and music workstation. Dig for sounds, chop samples, apply effects, and sequence patterns in a high-performance Web Audio environment.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
