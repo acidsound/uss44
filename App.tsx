@@ -118,12 +118,14 @@ const App: React.FC = () => {
         triggerMode: 'GATE'
       });
 
+      // Persist the recorded sample data
       await dbService.saveSample({
         id: sampleId,
         name: 'ULTRA_REC',
         data: arrayBuffer,
         waveform
       });
+
     }
   }, [isUltraSampleMode, currentBank, loadSampleToWorklet, updatePad, stopRecording]);
 
