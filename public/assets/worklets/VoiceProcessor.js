@@ -81,11 +81,14 @@ class VoiceProcessor extends AudioWorkletProcessor {
   }
 
   updateVoiceParams(data) {
-    const { padId, cutoff, resonance } = data;
+    const { padId, cutoff, resonance, pitch, volume, pan } = data;
     for (const voice of this.voices) {
       if (voice.padId === padId && !voice.finished) {
         if (cutoff !== undefined) voice.cutoff = cutoff;
         if (resonance !== undefined) voice.resonance = resonance;
+        if (pitch !== undefined) voice.speed = pitch;
+        if (volume !== undefined) voice.volume = volume;
+        if (pan !== undefined) voice.pan = pan;
       }
     }
   }

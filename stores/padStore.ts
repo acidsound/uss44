@@ -218,8 +218,14 @@ export const usePadStore = create<PadState>((set, get) => ({
     if (updates.start !== undefined || updates.end !== undefined) {
       useAudioStore.getState().updatePadStartEnd(id, newPads[id].start, newPads[id].end);
     }
-    if (updates.cutoff !== undefined || updates.resonance !== undefined) {
-      useAudioStore.getState().updatePadParams(id, newPads[id].cutoff, newPads[id].resonance);
+    if (updates.cutoff !== undefined || updates.resonance !== undefined || updates.pitch !== undefined || updates.volume !== undefined || updates.pan !== undefined) {
+      useAudioStore.getState().updatePadParams(id, {
+        cutoff: updates.cutoff,
+        resonance: updates.resonance,
+        pitch: updates.pitch,
+        volume: updates.volume,
+        pan: updates.pan
+      });
     }
   },
 

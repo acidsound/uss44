@@ -39,7 +39,7 @@ Welcome to the **USS44 Social Sampler**! This manual will guide you through the 
 
 ## 🎛️ Parameters (The PARAMS Panel)
 
-When a pad is selected, you can manipulate its sound in real-time:
+When a pad is selected, you can manipulate its sound in real-time. Changes are applied instantly, even while the pad or sequencer is playing:
 
 - **Chop Tab (Waveform)**:
   - Drag the **Start/End handles** to slice your sample.

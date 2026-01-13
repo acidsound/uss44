@@ -13,7 +13,7 @@
 - **🚀 UltraSample Mode**: Fast, intuitive recording directly to pads. One-touch sampling with automatic silence cropping.
 - **🎹 16-Pad Performance Grid**: Low-latency triggering with full multi-touch support.
 - **🎧 Social-Ready Digging**: Integrated 'Dig Network' to pull inspiration directly from web-based audio sources.
-- **🎛️ Real-time DSP**:
+- **🎛️ Real-time DSP** (Applied instantly even during playback):
   - **Pitch**: High-quality resampling from 0.1x to 4x.
   - **Filter**: TPT (Topology Preserving Transform) SVF Filter with Cutoff and Resonance control.
   - **Envelope**: Adjustable Attack and Release per pad.
