@@ -2,7 +2,7 @@
 import { Pad, SampleMetadata, StepData } from '../types';
 
 const DB_NAME = 'uss44-sampler-db';
-const DB_VERSION = 8; // Incremented for user library stores
+const DB_VERSION = 10; // Incremented for safety and new store stability
 const STORES = {
   SAMPLES: 'samples',
   PAD_CONFIGS: 'pad-configs',
@@ -11,7 +11,8 @@ const STORES = {
   // User Library Stores
   USER_SONGS: 'user_songs',
   USER_SOUNDS: 'user_sounds',
-  USER_SEQUENCES: 'user_sequences'
+  USER_SEQUENCES: 'user_sequences',
+  SAMPLE_PACKS: 'sample-packs'
 };
 
 export interface StoredSample {
@@ -37,6 +38,7 @@ export class DbService {
 
     this.initPromise = new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
+
       request.onupgradeneeded = (e) => {
         const db = (e.target as IDBOpenDBRequest).result;
 
@@ -64,13 +66,27 @@ export class DbService {
         if (!db.objectStoreNames.contains(STORES.USER_SEQUENCES)) {
           db.createObjectStore(STORES.USER_SEQUENCES, { keyPath: 'name' });
         }
+        if (!db.objectStoreNames.contains(STORES.SAMPLE_PACKS)) {
+          db.createObjectStore(STORES.SAMPLE_PACKS, { keyPath: 'id' });
+        }
       };
+
       request.onsuccess = () => {
         this.db = request.result;
         resolve();
       };
-      request.onerror = () => reject(request.error);
+
+      request.onerror = () => {
+        this.initPromise = null;
+        reject(request.error);
+      };
+
+      request.onblocked = () => {
+        console.warn("IndexedDB init blocked - please close other tabs of this app.");
+      };
     });
+
+    return this.initPromise;
   }
 
   // --- Generic Library Methods ---
@@ -263,8 +279,44 @@ export class DbService {
 
   async clearSequences(): Promise<void> {
     await this.init();
-    const tx = this.db!.transaction(STORES.SEQUENCES, 'readwrite');
+    if (!this.db) throw new Error("IndexedDB not initialized");
+    const tx = this.db.transaction(STORES.SEQUENCES, 'readwrite');
     tx.objectStore(STORES.SEQUENCES).clear();
+    return new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  // --- Sample Pack Management ---
+
+  async saveSamplePack(pack: any): Promise<void> {
+    await this.init();
+    if (!this.db) throw new Error("IndexedDB not initialized");
+    const tx = this.db.transaction(STORES.SAMPLE_PACKS, 'readwrite');
+    tx.objectStore(STORES.SAMPLE_PACKS).put(pack);
+    return new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getAllSamplePacks(): Promise<any[]> {
+    await this.init();
+    if (!this.db) throw new Error("IndexedDB not initialized");
+    const tx = this.db.transaction(STORES.SAMPLE_PACKS, 'readonly');
+    const request = tx.objectStore(STORES.SAMPLE_PACKS).getAll();
+    return new Promise((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async deleteSamplePack(id: string): Promise<void> {
+    await this.init();
+    if (!this.db) throw new Error("IndexedDB not initialized");
+    const tx = this.db.transaction(STORES.SAMPLE_PACKS, 'readwrite');
+    tx.objectStore(STORES.SAMPLE_PACKS).delete(id);
     return new Promise((resolve, reject) => {
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);

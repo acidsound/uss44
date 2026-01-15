@@ -91,3 +91,10 @@ export interface ProjectData {
   patterns: Record<string, StepData[]>;
   bpm: number;
 }
+
+export interface SamplePack {
+  id: string;
+  name: string;
+  url: string;
+  isDefault?: boolean;
+}

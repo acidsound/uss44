@@ -24,6 +24,14 @@ interface PadState {
   toggleSolo: (index: number) => void;
   clearPad: (index: number) => void;
 
+  // Sample Pack Management
+  samplePacks: any[]; // SamplePack[]
+  currentSamplePackId: string;
+  loadSamplePack: (packId: string) => Promise<void>;
+  addSamplePack: (name: string, url: string) => Promise<void>;
+  deleteSamplePack: (packId: string) => Promise<void>;
+  updateSamplePack: (id: string, updates: any) => Promise<void>;
+
   // Helpers for Project Service
   setPadsFromData: (pads: Record<string, Pad>) => void;
 }
@@ -83,6 +91,8 @@ export const usePadStore = create<PadState>((set, get) => ({
   selectedPadId: 'pad-0',
   isHydrating: false,
   sampleLibrary: [],
+  samplePacks: [],
+  currentSamplePackId: 'factory-default',
 
   resetPads: () => {
     set({ pads: createBasePads() });
@@ -98,29 +108,49 @@ export const usePadStore = create<PadState>((set, get) => ({
 
     const { audioContext, loadSampleToWorklet } = useAudioStore.getState();
 
+    // Load Sample Packs
+    let packs = await dbService.getAllSamplePacks();
+    const defaultPack = { id: 'factory-default', name: 'Factory Default', url: SAMPLE_SET_URL, isDefault: true };
+    if (packs.length === 0) {
+      await dbService.saveSamplePack(defaultPack);
+      packs = [defaultPack];
+    }
+    set({ samplePacks: packs });
+
+    let currentPackId = await dbService.getMetadata('current_sample_pack_id');
+    if (!currentPackId) currentPackId = 'factory-default';
+    set({ currentSamplePackId: currentPackId });
+
+    const currentPack = packs.find(p => p.id === currentPackId) || defaultPack;
+
     let library = await dbService.getSampleMetadata();
-    if (library.length === 0) {
+    // If library is empty or current pack doesn't match IDB library, refetch
+    // For simplicity, we'll refetch if currentPackId changed or library is empty
+    const lastActivePackId = await dbService.getMetadata('last_active_pack_id');
+
+    if (library.length === 0 || lastActivePackId !== currentPackId) {
       try {
-        const response = await fetch(SAMPLE_SET_URL);
+        const response = await fetch(currentPack.url);
         const data = await response.json();
-        const base = data._base;
+        const base = data._base || '';
         const metadata: SampleMetadata[] = [];
         const bankKeys = Object.keys(data).filter(k => k !== '_base').sort();
         for (const bankName of bankKeys) {
           const files = data[bankName];
-          const sortedFiles = [...files].sort();
+          const sortedFiles = Array.isArray(files) ? [...files].sort() : [];
           for (const filePath of sortedFiles) {
-            const fileName = filePath.split('/').pop().split('.')[0];
+            const fileName = filePath.split('/').pop()?.split('.')[0] || 'Unknown';
             metadata.push({
-              id: `${bankName}-${fileName}-${metadata.length}`,
+              id: `${currentPackId}-${bankName}-${fileName}-${metadata.length}`,
               name: fileName,
               bank: bankName,
-              url: base + filePath
+              url: (base.startsWith('http') ? base : (currentPack.url.split('/').slice(0, -1).join('/') + '/' + base)) + filePath
             });
           }
         }
         library = metadata;
         await dbService.saveSampleMetadata(library);
+        await dbService.saveMetadata('last_active_pack_id', currentPackId);
       } catch (e) {
         console.error('Failed to fetch sample set', e);
       }
@@ -366,5 +396,39 @@ export const usePadStore = create<PadState>((set, get) => ({
       }));
     }
     useAudioStore.getState().stopPad(id);
+  },
+
+  loadSamplePack: async (packId) => {
+    set({ currentSamplePackId: packId });
+    await dbService.saveMetadata('current_sample_pack_id', packId);
+    await get().initPads(); // Re-initialize to fetch new library
+  },
+
+  addSamplePack: async (name, url) => {
+    const id = `pack-${Date.now()}`;
+    const newPack = { id, name, url };
+    await dbService.saveSamplePack(newPack);
+    const packs = await dbService.getAllSamplePacks();
+    set({ samplePacks: packs });
+  },
+
+  deleteSamplePack: async (packId) => {
+    if (packId === 'factory-default') return;
+    await dbService.deleteSamplePack(packId);
+    const packs = await dbService.getAllSamplePacks();
+    set({ samplePacks: packs });
+    if (get().currentSamplePackId === packId) {
+      await get().loadSamplePack('factory-default');
+    }
+  },
+
+  updateSamplePack: async (id, updates) => {
+    const packs = get().samplePacks;
+    const pack = packs.find(p => p.id === id);
+    if (!pack) return;
+    const updatedPack = { ...pack, ...updates };
+    await dbService.saveSamplePack(updatedPack);
+    const newPacks = await dbService.getAllSamplePacks();
+    set({ samplePacks: newPacks });
   }
 }));
