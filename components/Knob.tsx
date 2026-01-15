@@ -52,6 +52,12 @@ export const Knob: React.FC<KnobProps> = ({ label, value, min, max, onChange, co
     <div className="flex flex-col items-center gap-2 select-none w-20 touch-none">
       <div 
         ref={knobRef}
+        role="slider"
+        aria-label={label}
+        aria-valuenow={value}
+        aria-valuemin={min}
+        aria-valuemax={max}
+        tabIndex={0}
         className={`relative w-14 h-14 rounded-full bg-zinc-800 border-2 shadow-2xl cursor-ns-resize transition-all 
           ${dragging ? 'border-retro-accent ring-4 ring-retro-accent/20' : 'border-zinc-700 hover:border-zinc-500'}
         `}

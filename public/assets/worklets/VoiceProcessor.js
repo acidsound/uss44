@@ -13,6 +13,10 @@ class VoiceProcessor extends AudioWorkletProcessor {
         case 'ADD_SAMPLE':
           this.sampleBuffers.set(data.id, data.channels);
           break;
+        case 'REMOVE_SAMPLE':
+          this.sampleBuffers.delete(data.id);
+          this.voices = this.voices.filter(v => v.sampleId !== data.id);
+          break;
         case 'TRIGGER_PAD':
           this.triggerVoice(data);
           break;
@@ -102,6 +106,13 @@ class VoiceProcessor extends AudioWorkletProcessor {
     this.releaseVoice(padId);
 
     if (this.voices.length >= 32) {
+      const oldestVoice = this.voices[0];
+      if (oldestVoice && !oldestVoice.finished) {
+        oldestVoice.envelope.phase = 'release';
+        oldestVoice.envelope.levelAtRelease = oldestVoice.envelope.levelAtRelease || 0.5;
+        oldestVoice.envelope.releaseT = 0;
+        oldestVoice.envelope.release = 0.005;
+      }
       this.voices.shift();
     }
 

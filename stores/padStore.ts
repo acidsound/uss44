@@ -133,43 +133,48 @@ export const usePadStore = create<PadState>((set, get) => ({
 
     if (configs.length === 0 && storedSamples.length === 0) {
       const autoSamples = library.filter(s => s.bank === 'auto').slice(0, 16);
-      for (let i = 0; i < autoSamples.length; i++) {
-        await get().loadSample(i, autoSamples[i].url, autoSamples[i].name);
-      }
+      await Promise.all(autoSamples.map((sample, i) => get().loadSample(i, sample.url, sample.name)));
     } else {
       const newPads = createBasePads();
-      for (const config of configs) {
-        if (newPads[config.id]) {
+      
+      const decodePromises = configs
+        .filter(config => {
+          const merged = { ...newPads[config.id], ...config };
+          return merged.sampleId && sampleMap.has(merged.sampleId) && audioContext;
+        })
+        .map(async (config) => {
           const mergedPad = { ...newPads[config.id], ...config };
-          if (mergedPad.sampleId && sampleMap.has(mergedPad.sampleId)) {
-            const stored = sampleMap.get(mergedPad.sampleId)!;
-            if (audioContext) {
-              try {
-                let decoded: AudioBuffer;
-                try {
-                  // Try standard decoding (for WAV/MP3 files from library)
-                  decoded = await audioContext.decodeAudioData(stored.data.slice(0));
-                } catch (decodeErr) {
-                  // Fallback: Assume raw PCM Float32 data (for recordings and imported projects)
-                  const floatData = new Float32Array(stored.data);
-                  decoded = audioContext.createBuffer(1, floatData.length, audioContext.sampleRate);
-                  decoded.copyToChannel(floatData, 0);
-                }
-
-                mergedPad.buffer = decoded;
-                if (!mergedPad.waveform || mergedPad.waveform.length === 0) {
-                  mergedPad.waveform = generateWaveform(decoded);
-                  await dbService.savePadConfig(config.id, mergedPad);
-                }
-                loadSampleToWorklet(mergedPad.sampleId, decoded);
-              } catch (e) {
-                console.error(`Failed to restore sample ${mergedPad.sampleId}`, e);
-              }
+          const stored = sampleMap.get(mergedPad.sampleId!)!;
+          try {
+            let decoded: AudioBuffer;
+            try {
+              decoded = await audioContext!.decodeAudioData(stored.data.slice(0));
+            } catch (decodeErr) {
+              const floatData = new Float32Array(stored.data);
+              decoded = audioContext!.createBuffer(1, floatData.length, audioContext!.sampleRate);
+              decoded.copyToChannel(floatData, 0);
             }
+
+            mergedPad.buffer = decoded;
+            if (!mergedPad.waveform || mergedPad.waveform.length === 0) {
+              mergedPad.waveform = generateWaveform(decoded);
+              await dbService.savePadConfig(config.id, mergedPad);
+            }
+            loadSampleToWorklet(mergedPad.sampleId!, decoded);
+          } catch (e) {
+            console.error(`Failed to restore sample ${mergedPad.sampleId}`, e);
           }
           newPads[config.id] = mergedPad;
+        });
+      
+      await Promise.all(decodePromises);
+      
+      configs.forEach(config => {
+        if (newPads[config.id] && !newPads[config.id].buffer) {
+          newPads[config.id] = { ...newPads[config.id], ...config };
         }
-      }
+      });
+      
       set({ pads: newPads });
     }
 
@@ -254,9 +259,13 @@ export const usePadStore = create<PadState>((set, get) => ({
   clearPad: (index) => {
     const { pads, currentBank } = get();
     const id = `${currentBank}-${index}`;
+    const currentPad = pads[id];
     const basePads = createBasePads();
     const defaultPad = basePads[id];
     if (defaultPad) {
+      if (currentPad?.sampleId) {
+        useAudioStore.getState().removeSampleFromWorklet(currentPad.sampleId);
+      }
       set(state => ({ pads: { ...state.pads, [id]: defaultPad } }));
       dbService.savePadConfig(id, defaultPad);
     }

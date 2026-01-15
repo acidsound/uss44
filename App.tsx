@@ -268,15 +268,16 @@ const App: React.FC = () => {
   };
 
   const scheduleNoteAtTime = (step: number, time: number) => {
-    for (let bankKey of ['A', 'B', 'C', 'D']) {
-      for (let i = 0; i < 16; i++) {
-        const trackKey = `${bankKey}-${i}`;
-        const track = useSequencerStore.getState().patterns[trackKey];
-        if (track && track[step] && track[step].active) {
-          const stepData = track[step];
-          const pitchMultiplier = Math.pow(2, stepData.pitch / 12);
-          usePadStore.getState().triggerPad(i, (stepData.velocity / 127), pitchMultiplier, time);
-        }
+    const patterns = useSequencerStore.getState().patterns;
+    const patternKeys = Object.keys(patterns);
+    
+    for (const trackKey of patternKeys) {
+      const track = patterns[trackKey];
+      if (track && track[step] && track[step].active) {
+        const stepData = track[step];
+        const pitchMultiplier = Math.pow(2, stepData.pitch / 12);
+        const padIndex = parseInt(trackKey.split('-')[1]);
+        usePadStore.getState().triggerPad(padIndex, (stepData.velocity / 127), pitchMultiplier, time);
       }
     }
   };

@@ -5,6 +5,7 @@ interface AudioState {
   audioContext: AudioContext | null;
   workletNode: AudioWorkletNode | null;
   initialized: boolean;
+  isInitializing: boolean;
 
   // Microphone / Recording State
   micStream: MediaStream | null;
@@ -18,6 +19,7 @@ interface AudioState {
   initialize: (ctx?: AudioContext) => Promise<void>;
   resume: () => Promise<void>;
   loadSampleToWorklet: (id: string, buffer: AudioBuffer) => void;
+  removeSampleFromWorklet: (id: string) => void;
   triggerPad: (data: any) => void;
   stopPad: (padId: string) => void;
   updatePadStartEnd: (padId: string, start: number, end: number) => void;
@@ -35,6 +37,7 @@ export const useAudioStore = create<AudioState>((set, get) => ({
   audioContext: null,
   workletNode: null,
   initialized: false,
+  isInitializing: false,
 
   micStream: null,
   micSource: null,
@@ -45,7 +48,9 @@ export const useAudioStore = create<AudioState>((set, get) => ({
   preRollChunks: [],
 
   initialize: async (externalCtx?: AudioContext) => {
-    if (get().initialized) return;
+    // Mutex: prevent multiple simultaneous initializations
+    if (get().initialized || get().isInitializing) return;
+    set({ isInitializing: true });
 
     // Use external context if provided, otherwise create new one
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
@@ -66,9 +71,7 @@ export const useAudioStore = create<AudioState>((set, get) => ({
 
       try {
         await ctx.audioWorklet.addModule(workletUrl);
-        console.log("AudioWorklet module loaded successfully");
       } catch (err) {
-        console.error("Error adding AudioWorklet module", err);
         throw err;
       } finally {
         URL.revokeObjectURL(workletUrl);
@@ -85,10 +88,11 @@ export const useAudioStore = create<AudioState>((set, get) => ({
       node.connect(compressor);
       compressor.connect(ctx.destination);
 
-      set({ audioContext: ctx, workletNode: node, initialized: true });
+      set({ audioContext: ctx, workletNode: node, initialized: true, isInitializing: false });
 
     } catch (e) {
       console.error('Failed to initialize Audio Engine:', e);
+      set({ isInitializing: false });
     }
   },
 
@@ -112,6 +116,16 @@ export const useAudioStore = create<AudioState>((set, get) => ({
       type: 'ADD_SAMPLE',
       data: { id, channels }
     });
+  },
+
+  removeSampleFromWorklet: (id: string) => {
+    const { workletNode } = get();
+    if (workletNode) {
+      workletNode.port.postMessage({
+        type: 'REMOVE_SAMPLE',
+        data: { id }
+      });
+    }
   },
 
   triggerPad: (data: any) => {
@@ -166,14 +180,11 @@ export const useAudioStore = create<AudioState>((set, get) => ({
   initMic: async () => {
     const { audioContext, micStream, initialized } = get();
 
-    // Ensure we have initialized the main engine first (for AudioContext and Worklet registration)
     if (!initialized || !audioContext) {
-      console.log("Audio not initialized yet, waiting...");
       await get().initialize();
     }
 
     if (micStream) {
-      console.log("Mic already active");
       return;
     }
 
@@ -184,7 +195,6 @@ export const useAudioStore = create<AudioState>((set, get) => ({
 
     try {
       const activeCtx = get().audioContext!;
-      console.log("Requesting microphone access...");
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: false,
@@ -192,14 +202,12 @@ export const useAudioStore = create<AudioState>((set, get) => ({
           autoGainControl: false
         }
       });
-      console.log("Microphone access granted");
 
       const source = audioContext.createMediaStreamSource(stream);
       const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 2048; // Higher resolution for visualizer
+      analyser.fftSize = 2048;
       analyser.smoothingTimeConstant = 0.5;
 
-      // Use the recorder-processor with 1 output to ensure it stays active in some browsers
       const recorderNode = new AudioWorkletNode(audioContext, 'recorder-processor', {
         numberOfInputs: 1,
         numberOfOutputs: 1,
@@ -257,7 +265,6 @@ export const useAudioStore = create<AudioState>((set, get) => ({
 
   closeMic: () => {
     const { micStream, micSource, recorderNode } = get();
-    console.log("Closing mic...");
     micStream?.getTracks().forEach(t => t.stop());
     micSource?.disconnect();
     recorderNode?.disconnect();
@@ -273,20 +280,16 @@ export const useAudioStore = create<AudioState>((set, get) => ({
   },
 
   startRecording: () => {
-    console.log("Recording session starting...");
     set({ isRecording: true, recordedChunks: [] });
   },
 
   stopRecording: async () => {
     const { audioContext, recordedChunks, preRollChunks, isRecording } = get();
-    console.log(`Stop recording called. Status: ${isRecording}, Chunks: ${recordedChunks.length}, PreRoll: ${preRollChunks.length}`);
     set({ isRecording: false });
 
-    // Combine pre-roll and recorded chunks
     const allChunks = [...preRollChunks, ...recordedChunks];
 
     if (!audioContext || allChunks.length === 0) {
-      console.error("No audio data captured! (onmessage might not be firing)");
       return null;
     }
 

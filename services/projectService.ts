@@ -47,8 +47,6 @@ class ProjectService {
     // Reset Stores
     resetPads();
     resetSequencer();
-
-    console.log('Project Initialized');
   }
 
   // --- SERIALIZATION HELPERS ---
@@ -230,7 +228,6 @@ class ProjectService {
     for (const key in data.patterns) {
       await dbService.saveSequence(key, data.patterns[key]);
     }
-    console.log("Import Complete");
   }
 }
 

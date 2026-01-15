@@ -118,7 +118,10 @@ const SampleItem: React.FC<{
     }
     const source = audioContext.createBufferSource();
     source.buffer = audioBuffer;
-    source.connect(audioContext.destination);
+    const previewGain = audioContext.createGain();
+    previewGain.gain.value = 0.8;
+    source.connect(previewGain);
+    previewGain.connect(audioContext.destination);
     source.onended = () => { if (sourceRef.current === source) { onStop(); } };
     source.start();
     sourceRef.current = source;

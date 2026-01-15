@@ -104,14 +104,11 @@ export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMod
         let x = 0;
 
         for (let i = 0; i < bufferLength; i++) {
-            const v = dataArray[i] / 128.0;
-            const y = v * (height / 2) + (height / 2 - height / 2); // Center vertically? No, v goes 0..2
-            // dataArray is 0-255. 128 is 0. 
-            // v is 0..2. y should be centered.
-            const centeredY = (v * height) / 2; // Rough scaling
+            const v = (dataArray[i] - 128) / 128.0;
+            const y = (height / 2) - (v * height / 2);
 
-            if (i === 0) ctx.moveTo(x, centeredY);
-            else ctx.lineTo(x, centeredY);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
             x += sliceWidth;
         }
         ctx.lineTo(width, height / 2);
