@@ -6,13 +6,15 @@ import { useSequencerStore } from '../stores/sequencerStore';
 import { Knob } from './Knob';
 
 export const SequencePanel: React.FC = () => {
-  const { currentChannel, selectedPadId, pads } = usePadStore();
+  const { currentChannel, selectedPadId, pads, samples } = usePadStore();
   const { patterns, selectedStepIndex, updateStepData } = useSequencerStore();
 
   const selectedPadIndex = parseInt(selectedPadId.split('-')[1]);
   const activePad = pads[`${currentChannel}-${selectedPadIndex}`];
   const activePattern = patterns[`${currentChannel}-${selectedPadIndex}`];
   const activeStepData = activePattern ? activePattern[selectedStepIndex] : null;
+
+  const sampleName = activePad?.sampleId ? samples[activePad.sampleId]?.name : null;
 
   return (
     <div id="sequence-panel" className="flex flex-col h-full overflow-hidden">
@@ -21,7 +23,7 @@ export const SequencePanel: React.FC = () => {
           <Music size={14} /> Sequence Editor <span className="text-white ml-1">#Step {selectedStepIndex + 1}</span>
         </div>
         <div id="sequence-active-pad-name" className="text-[10px] text-zinc-500 font-bold uppercase">
-          {activePad?.sampleName || 'Empty'}
+          {sampleName || 'Empty'}
         </div>
       </div>
       <div id="sequence-controls" className="flex-1 grid grid-cols-3 gap-4 p-6 place-items-center bg-black/40">

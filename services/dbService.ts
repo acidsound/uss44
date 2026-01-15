@@ -177,9 +177,9 @@ export class DbService {
 
   async savePadConfig(id: string, config: Partial<Pad>): Promise<void> {
     await this.init();
-    const { buffer, isHeld, ...persistentConfig } = config as any;
+    // Explicitly exclude non-persistent and redundant fields
+    const { buffer, isHeld, lastTriggerTime, lastTriggerDuration, sampleName, waveform, ...persistentConfig } = config as any;
     const tx = this.db!.transaction(STORES.PAD_CONFIGS, 'readwrite');
-    // Place id last to ensure it overwrites any 'id' property within persistentConfig
     tx.objectStore(STORES.PAD_CONFIGS).put({ ...persistentConfig, id });
     return new Promise((resolve, reject) => {
       tx.oncomplete = () => resolve();

@@ -14,21 +14,23 @@ interface ParametersPanelProps {
 export const ParametersPanel: React.FC<ParametersPanelProps> = ({ isLandscape, isUltraSampleMode = false }) => {
   const [editSubMode, setEditSubMode] = useState<'CHOP' | 'PARAMS'>('CHOP');
   const [showRenameModal, setShowRenameModal] = useState(false);
-  const { currentChannel, selectedPadId, pads, updatePad } = usePadStore();
+  const { currentChannel, selectedPadId, pads, samples, updatePad, updateSampleName } = usePadStore();
 
   const selectedPadIndex = parseInt(selectedPadId.split('-')[1]);
   const activePad = pads[`${currentChannel}-${selectedPadIndex}`];
 
   const handleRenameSave = (newName: string) => {
-    updatePad(selectedPadIndex, { sampleName: newName });
+    if (activePad?.sampleId) {
+      updateSampleName(activePad.sampleId, newName);
+    }
   };
 
   return (
     <div id="parameters-panel" className="flex flex-col h-full overflow-hidden relative">
       {/* Rename Modal */}
-      {showRenameModal && activePad && (
+      {showRenameModal && activePad && activePad.sampleId && (
         <RenameModal
-          initialName={activePad.sampleName || ''}
+          initialName={samples[activePad.sampleId]?.name || ''}
           onSave={handleRenameSave}
           onClose={() => setShowRenameModal(false)}
         />
@@ -71,7 +73,7 @@ export const ParametersPanel: React.FC<ParametersPanelProps> = ({ isLandscape, i
             <span
               className="text-[11px] font-bold text-white w-28 uppercase truncate text-left group-hover:text-retro-accent transition-colors block"
             >
-              {activePad?.sampleName || 'EMPTY'}
+              {(activePad?.sampleId ? samples[activePad.sampleId]?.name : null) || 'EMPTY'}
             </span>
           </button>
         )}

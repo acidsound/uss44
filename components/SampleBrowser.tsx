@@ -245,18 +245,25 @@ export const SampleBrowser: React.FC<SampleBrowserProps> = ({ onClose, isLandsca
       const audioBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
       const sampleId = `user-upload-${Date.now()}`;
       const waveform = generateWaveform(audioBuffer);
+      const sampleName = file.name.split('.')[0].toUpperCase();
+
       loadSampleToWorklet(sampleId, audioBuffer);
+
       updatePad(targetPadIndex, {
         sampleId,
-        sampleName: file.name.split('.')[0].toUpperCase(),
         buffer: audioBuffer,
-        waveform,
         start: 0,
         end: 1,
         viewStart: 0,
         viewEnd: 1
       });
-      await dbService.saveSample({ id: sampleId, name: file.name, data: arrayBuffer, waveform });
+
+      // Update the centralized samples lookup
+      usePadStore.setState(state => ({
+        samples: { ...state.samples, [sampleId]: { name: sampleName, waveform } }
+      }));
+
+      await dbService.saveSample({ id: sampleId, name: sampleName, data: arrayBuffer, waveform });
       onClose();
     } catch (err) { }
   };
@@ -283,15 +290,18 @@ export const SampleBrowser: React.FC<SampleBrowserProps> = ({ onClose, isLandsca
     loadSampleToWorklet(sampleId, buffer);
     updatePad(targetPadIndex, {
       sampleId,
-      sampleName: name,
       buffer,
-      waveform,
       start: startPos,
       end: endPos,
       viewStart: startPos,
       viewEnd: endPos,
       triggerMode: 'GATE'
     });
+
+    // Update the centralized samples lookup
+    usePadStore.setState(state => ({
+      samples: { ...state.samples, [sampleId]: { name, waveform } }
+    }));
 
     const arrayBuffer = data.buffer.slice(0);
     await dbService.saveSample({ id: sampleId, name: name, data: arrayBuffer, waveform });

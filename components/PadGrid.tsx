@@ -27,7 +27,7 @@ export const PadGrid: React.FC<PadGridProps> = ({
   onUltraRecordStart,
   onUltraRecordStop
 }) => {
-  const { pads, currentChannel, selectedPadId, selectPad, triggerPad, stopPad } = usePadStore();
+  const { pads, samples, currentChannel, selectedPadId, selectPad, triggerPad, stopPad } = usePadStore();
   const { currentStep, isPlaying, patterns, toggleStep, setSelectedStepIndex, selectedStepIndex } = useSequencerStore();
 
   const isSequenceMode = appMode === AppMode.SEQUENCE;
@@ -342,9 +342,9 @@ export const PadGrid: React.FC<PadGridProps> = ({
                 {isSequenceMode ? `S${idx + 1}` : `PAD ${idx + 1}`}
               </span>
 
-              {!isSequenceMode && pad?.sampleName && (
+              {!isSequenceMode && pad?.sampleId && samples[pad.sampleId]?.name && (
                 <span className={`text-[9px] font-extrabold truncate max-w-[95%] uppercase leading-none drop-shadow-md ${isUltraSampleMode ? 'text-retro-accent' : 'text-white'}`}>
-                  {pad.sampleName}
+                  {samples[pad.sampleId].name}
                 </span>
               )}
 

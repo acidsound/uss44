@@ -11,11 +11,12 @@ interface WaveformEditorProps {
 }
 
 export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMode = false }) => {
-  const { currentChannel, selectedPadId, pads, updatePad } = usePadStore();
+  const { currentChannel, selectedPadId, pads, samples, updatePad } = usePadStore();
   const { audioContext, micAnalyser, isRecording } = useAudioStore();
   const { setBpm } = useSequencerStore();
   const selectedPadIndex = parseInt(selectedPadId.split('-')[1]);
   const activePad = pads[`${currentChannel}-${selectedPadIndex}`];
+  const sampleData = activePad?.sampleId ? samples[activePad.sampleId] : null;
 
   const detectedBpm = useMemo(() => {
     if (activePad?.buffer) {
@@ -41,7 +42,7 @@ export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMod
   const [dragTarget, setDragTarget] = useState<'start' | 'end' | 'scroll' | 'ruler' | 'selection' | 'doubleTapCrop' | null>(null);
 
   const buffer = activePad?.buffer;
-  const storedWaveform = activePad?.waveform;
+  const storedWaveform = sampleData?.waveform;
   const RULER_HEIGHT = 18;
   const HANDLE_WIDTH = 24;
   const HANDLE_HEIGHT = 48;

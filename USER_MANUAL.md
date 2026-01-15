@@ -90,13 +90,23 @@ When a pad is selected, you can manipulate its sound in real-time. Changes are a
 
 ---
 
-## 💾 Project Management
+### 1. Granular Export & Import
+Export your work at different levels of complexity:
+- **Sequence**: Small files containing only the 16-step patterns. Great for sharing rhythms.
+- **Sound Kit**: Contains the 16 pad settings AND all associated audio sample data. Perfect for sharing your "Sound" without the notes.
+- **Project Song**: The full snapshot. Includes all sounds, samples, patterns, and BPM. This is the complete work.
 
-All your data is saved locally to your browser's **IndexedDB**. Even if you refresh, your last session will be restored.
+### 2. File Operations
+- **Save to Library**: Store the current item (Song, Kit, or Sequence) into your browser's local database.
+- **Export to JSON**: Download the current active state directly as a file.
+- **Import from JSON**: Drag or select any USS44 `.json` file. The system automatically detects if it's a Song, Kit, or Sequence and loads it appropriately.
 
-- **Save Song**: Store your current project (including all recorded samples) to the local library.
-- **Export All**: Download your entire project as a single `.json` file to share or backup.
-- **Import All**: Drag and drop a `.json` project file to restore it.
+---
+
+## 🛠️ Global Tools
+- **BPM Control**: Found in the LCD. Tap or drag to adjust.
+- **Init All (Factory Reset)**: Found in the Settings menu. This will clear all active workspace data and restore the **Factory Default Sound Kit**, giving you a clean slate with classic sounds.
+- **Stop Reset**: When the sequencer is stopped, all waveform playheads reset to their start positions.
 
 ---
 

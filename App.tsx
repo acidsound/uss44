@@ -110,15 +110,18 @@ const App: React.FC = () => {
 
       updatePad(padIdx, {
         sampleId,
-        sampleName: 'ULTRA_REC',
         buffer,
-        waveform,
         start: finalStart,
         end: finalEnd,
         viewStart: finalStart,
         viewEnd: finalEnd,
         triggerMode: 'GATE'
       });
+
+      // Update the centralized samples lookup
+      usePadStore.setState(state => ({
+        samples: { ...state.samples, [sampleId]: { name: 'ULTRA_REC', waveform } }
+      }));
 
       // Persist the recorded sample data
       await dbService.saveSample({

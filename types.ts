@@ -30,7 +30,6 @@ export interface Pad {
   id: string; // 'pad-0' to 'pad-15' (visual index)
   channelId: ChannelId;
   sampleId: string | null;
-  sampleName?: string; // The user-editable name for the sample on this pad
 
   // Parameters
   volume: number;      // 0-2
@@ -49,7 +48,6 @@ export interface Pad {
 
   color: string;
   buffer?: AudioBuffer;
-  waveform?: number[]; // Pre-computed peaks for immediate UI feedback
 
   // Transient trigger data for UI feedback
   lastTriggerTime?: number;

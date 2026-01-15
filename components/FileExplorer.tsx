@@ -24,6 +24,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ mode, type, onClose,
   const [renamingFile, setRenamingFile] = useState<string | null>(null);
   const [renameInput, setRenameInput] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     refreshList();
@@ -103,6 +104,32 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ mode, type, onClose,
     }
   };
 
+  const handleExternalImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLoading(true);
+    try {
+      const result = await projectService.importFileToLibrary(file);
+      await refreshList();
+      setSelectedFile(result.name);
+      if (mode === 'SAVE') setFilename(result.name);
+    } catch (err) {
+      alert("Import failed: " + err);
+    } finally {
+      setLoading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleExportToFile = async (name: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await projectService.exportLibraryItem(type, name);
+    } catch (err) {
+      alert("Export failed: " + err);
+    }
+  };
+
   const filteredFiles = files.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
@@ -137,6 +164,20 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ mode, type, onClose,
               className="w-full bg-black/40 border border-zinc-700 rounded-lg py-2 pl-9 pr-3 text-xs text-white focus:border-retro-accent focus:outline-none"
             />
           </div>
+          <button
+            onClick={() => importInputRef.current?.click()}
+            className="flex items-center gap-2 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-[10px] font-extrabold uppercase tracking-widest transition-all"
+            title={`Import ${type} from JSON file`}
+          >
+            <Download className="rotate-180" size={14} /> Import
+          </button>
+          <input
+            type="file"
+            ref={importInputRef}
+            onChange={handleExternalImport}
+            accept=".json"
+            className="hidden"
+          />
         </div>
 
         {/* File List */}
@@ -158,8 +199,8 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ mode, type, onClose,
                   key={file.name}
                   onClick={() => { setSelectedFile(file.name); if (mode === 'SAVE') setFilename(file.name); }}
                   className={`group flex items-center justify-between p-3 rounded-lg border transition-all cursor-pointer ${selectedFile === file.name
-                      ? 'bg-retro-accent/10 border-retro-accent text-white'
-                      : 'bg-zinc-900/40 border-transparent hover:bg-zinc-800 text-zinc-400 hover:text-white'
+                    ? 'bg-retro-accent/10 border-retro-accent text-white'
+                    : 'bg-zinc-900/40 border-transparent hover:bg-zinc-800 text-zinc-400 hover:text-white'
                     }`}
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -183,6 +224,12 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ mode, type, onClose,
                   </div>
 
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={(e) => handleExportToFile(file.name, e)}
+                      className="p-1.5 hover:bg-white/10 rounded-md text-zinc-500 hover:text-white" title="Export to File"
+                    >
+                      <Download size={12} />
+                    </button>
                     <button
                       onClick={(e) => startRename(file.name, e)}
                       className="p-1.5 hover:bg-white/10 rounded-md text-zinc-500 hover:text-white" title="Rename"

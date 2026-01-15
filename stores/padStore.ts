@@ -11,6 +11,7 @@ interface PadState {
   selectedPadId: string;
   isHydrating: boolean;
   sampleLibrary: SampleMetadata[];
+  samples: Record<string, { name: string, waveform: number[] }>; // Runtime cache for sample data
 
   initPads: () => Promise<void>;
   resetPads: () => void;
@@ -24,6 +25,7 @@ interface PadState {
   toggleSolo: (index: number) => void;
   syncMuteStates: () => void;
   clearPad: (index: number) => void;
+  updateSampleName: (sampleId: string, newName: string) => Promise<void>;
 
   // Sample Pack Management
   samplePacks: any[]; // SamplePack[]
@@ -65,7 +67,6 @@ const createBasePads = () => {
         id: `pad-${i}`,
         channelId: channel,
         sampleId: null,
-        sampleName: '',
         volume: 1.0,
         pitch: 1.0,
         pan: 0,
@@ -93,11 +94,12 @@ export const usePadStore = create<PadState>((set, get) => ({
   selectedPadId: 'pad-0',
   isHydrating: false,
   sampleLibrary: [],
+  samples: {},
   samplePacks: [],
   currentSamplePackId: 'factory-default',
 
   resetPads: () => {
-    set({ pads: createBasePads() });
+    set({ pads: createBasePads(), samples: {} });
   },
 
   setPadsFromData: (newPads) => {
@@ -163,6 +165,13 @@ export const usePadStore = create<PadState>((set, get) => ({
     const storedSamples = await dbService.getAllSamples();
     const sampleMap = new Map(storedSamples.map(s => [s.id, s]));
 
+    // Populate the runtime samples cache
+    const sampleCache: Record<string, { name: string, waveform: number[] }> = {};
+    storedSamples.forEach(s => {
+      sampleCache[s.id] = { name: s.name, waveform: s.waveform || [] };
+    });
+    set({ samples: sampleCache });
+
     if (configs.length === 0 && storedSamples.length === 0) {
       const autoSamples = library.filter(s => s.bank === 'auto').slice(0, 16);
       await Promise.all(autoSamples.map((sample, i) => get().loadSample(i, sample.url, sample.name)));
@@ -188,9 +197,11 @@ export const usePadStore = create<PadState>((set, get) => ({
             }
 
             mergedPad.buffer = decoded;
-            if (!mergedPad.waveform || mergedPad.waveform.length === 0) {
-              mergedPad.waveform = generateWaveform(decoded);
-              await dbService.savePadConfig(config.id, mergedPad);
+            const currentSample = sampleCache[mergedPad.sampleId!];
+            if (!currentSample?.waveform || currentSample.waveform.length === 0) {
+              const waveform = generateWaveform(decoded);
+              sampleCache[mergedPad.sampleId!] = { ...currentSample, waveform };
+              await dbService.saveSample({ ...stored, waveform });
             }
             loadSampleToWorklet(mergedPad.sampleId!, decoded);
           } catch (e) {
@@ -207,7 +218,7 @@ export const usePadStore = create<PadState>((set, get) => ({
         }
       });
 
-      set({ pads: newPads });
+      set({ pads: newPads, samples: { ...sampleCache } });
     }
 
     get().syncMuteStates();
@@ -342,9 +353,7 @@ export const usePadStore = create<PadState>((set, get) => ({
       const updatedPad: Pad = {
         ...pads[id],
         sampleId,
-        sampleName: name,
         buffer: audioBuffer,
-        waveform,
         start: 0,
         end: 1,
         viewStart: 0,
@@ -352,7 +361,10 @@ export const usePadStore = create<PadState>((set, get) => ({
         triggerMode: 'ONE_SHOT'
       };
 
-      set(state => ({ pads: { ...state.pads, [id]: updatedPad } }));
+      set(state => ({
+        pads: { ...state.pads, [id]: updatedPad },
+        samples: { ...state.samples, [sampleId]: { name, waveform } }
+      }));
       await dbService.saveSample({ id: sampleId, name: name, data: originalArrayBuffer, waveform });
       await dbService.savePadConfig(id, updatedPad);
     } catch (e) {
@@ -465,5 +477,21 @@ export const usePadStore = create<PadState>((set, get) => ({
       newPads[id] = { ...newPads[id], isHeld: false, lastTriggerTime: undefined };
     });
     set({ pads: newPads });
+  },
+
+  updateSampleName: async (sampleId, newName) => {
+    const { samples } = get();
+    if (!samples[sampleId]) return;
+
+    // Update runtime cache
+    const updatedSamples = { ...samples, [sampleId]: { ...samples[sampleId], name: newName } };
+    set({ samples: updatedSamples });
+
+    // Persist to IndexedDB
+    const storedSamples = await dbService.getAllSamples();
+    const stored = storedSamples.find(s => s.id === sampleId);
+    if (stored) {
+      await dbService.saveSample({ ...stored, name: newName });
+    }
   }
 }));
