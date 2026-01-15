@@ -47,9 +47,19 @@
    ```bash
    npm install
    ```
-3. Start the development server:
+4. Start the Dig Backend (Required for 'Dig Network' feature):
+   ```bash
+   npm run backend
+   ```
+   *Note: This requires `yt-dlp` and `ffmpeg` to be installed on your system.*
+
+5. Start the development server (in a new terminal):
    ```bash
    npm run dev
+   ```
+   *Or run both concurrently:*
+   ```bash
+   npm run dev:all
    ```
 
 ## 🏗️ Deployment

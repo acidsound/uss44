@@ -255,7 +255,30 @@ npm run dev:all
 
 # 5. Build for Production
 npm run build
+
+# 6. Deployment (Backend)
+# Follow instructions in backend/README.md for Hugging Face Spaces.
 ```
+
+---
+
+## 11. Advanced Features: Dig Network
+The Dig Network allows users to sample audio from social media platforms (YouTube, TikTok, Instagram, Xiaohongshu, Rutube).
+
+### Extraction Workflow
+1. **URL Parsing**: `utils/urlParser.ts` detects the platform and extracts video IDs.
+2. **Metadata**: `services/oembedService.ts` fetches thumbnails and titles via a backend proxy to avoid CORS issues.
+3. **Player Integration**:
+   - **YouTube**: Uses YouTube IFrame API to capture `getCurrentTime()`.
+   - **Rutube**: Uses `postMessage` API to listen for `timeupdate` events.
+4. **Extraction**: The frontend sends a request to the backend with the URL and a specific time range (up to 3 minutes).
+5. **Backend Processing**: The Express server calls `yt-dlp` with the `--download-sections` flag to extract only the requested portion of the audio, then returns it as an MP3.
+
+### API Specification (Backend)
+- `POST /info`: Returns title, duration, thumbnail, and embedUrl.
+- `POST /search`: Searches YouTube using `ytsearch` prefix.
+- `POST /extract`: Handles the `yt-dlp` extraction process with progress tracking.
+
 
 ---
 

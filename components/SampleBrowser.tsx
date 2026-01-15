@@ -8,6 +8,7 @@ import { MOCK_SOCIAL_FEED } from '../constants';
 import { dbService } from '../services/dbService';
 import { RecordingModal } from './RecordingModal';
 import { SamplePackManager } from './SamplePackManager';
+import { DigNetwork } from './DigNetwork';
 import { Settings } from 'lucide-react';
 
 interface SampleBrowserProps {
@@ -340,20 +341,20 @@ export const SampleBrowser: React.FC<SampleBrowserProps> = ({ onClose, isLandsca
       <div id="browser-scroll-area" className="flex-1 overflow-y-auto no-scrollbar pb-10">
         <div className="max-w-2xl mx-auto px-2 py-2 space-y-2">
 
-          {/* Search Bar & Manager */}
-          <div id="browser-search-container" className="flex items-center gap-2">
-            <div className="relative flex-1 group">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-retro-accent transition-all" size={14} />
-              <input
-                id="browser-search-input"
-                type="text"
-                placeholder={sampleTab === 'LIBRARY' ? "Search 1000+ Factory Samples..." : "URL or Search Social Media..."}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-zinc-900/50 border border-white/5 rounded-xl py-2.5 pl-10 pr-4 text-[11px] font-extrabold text-white focus:border-retro-accent/50 focus:bg-zinc-900/80 focus:outline-none transition-all placeholder:text-zinc-700"
-              />
-            </div>
-            {sampleTab === 'LIBRARY' && (
+          {/* Search Bar & Manager (Library Only) */}
+          {sampleTab === 'LIBRARY' && (
+            <div id="browser-search-container" className="flex items-center gap-2">
+              <div className="relative flex-1 group">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-retro-accent transition-all" size={14} />
+                <input
+                  id="browser-search-input"
+                  type="text"
+                  placeholder="Search 1000+ Factory Samples..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-zinc-900/50 border border-white/5 rounded-xl py-2.5 pl-10 pr-4 text-[11px] font-extrabold text-white focus:border-retro-accent/50 focus:bg-zinc-900/80 focus:outline-none transition-all placeholder:text-zinc-700"
+                />
+              </div>
               <button
                 onClick={() => setShowPackManager(true)}
                 className="p-2.5 bg-zinc-900/50 border border-white/5 rounded-xl text-zinc-500 hover:text-white hover:bg-zinc-800 transition-all active:scale-95 flex-none"
@@ -361,8 +362,8 @@ export const SampleBrowser: React.FC<SampleBrowserProps> = ({ onClose, isLandsca
               >
                 <Library size={18} />
               </button>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Banks Row */}
           {sampleTab === 'LIBRARY' && (
@@ -428,27 +429,7 @@ export const SampleBrowser: React.FC<SampleBrowserProps> = ({ onClose, isLandsca
             </div>
           ) : (
             <div id="dig-content" className="space-y-4">
-              {filteredDigItems.map((item) => (
-                <div id={`dig-item-${item.id}`} key={item.id} className="bg-[#121214] border border-white/5 rounded-xl overflow-hidden shadow-xl hover:border-retro-accent/30 transition-all">
-                  <div className="relative aspect-video bg-black">
-                    <img src={item.thumbnail} className="w-full h-full object-cover opacity-50" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-                    <div className="absolute bottom-2 right-2 bg-black/80 px-2 py-0.5 text-[9px] font-extrabold rounded border border-white/10 text-white">{item.duration}</div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <Play size={32} className="text-white fill-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                  </div>
-                  <div className="p-4 flex items-center justify-between gap-4">
-                    <span className="font-extrabold text-[10px] uppercase text-white truncate flex-1">{item.title}</span>
-                    <button
-                      onClick={() => handleSelectSample(item.audioUrl, item.title)}
-                      className="bg-zinc-800 hover:bg-retro-accent text-[9px] font-extrabold uppercase px-6 py-2.5 rounded-lg border border-white/5 text-white transition-all shadow-md"
-                    >
-                      Dig
-                    </button>
-                  </div>
-                </div>
-              ))}
+              <DigNetwork targetPadIndex={targetPadIndex} onClose={onClose} />
             </div>
           )}
         </div>
