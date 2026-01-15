@@ -21,7 +21,7 @@ class VoiceProcessor extends AudioWorkletProcessor {
           this.triggerVoice(data);
           break;
         case 'RELEASE_PAD':
-          this.releaseVoice(data.padId);
+          this.releaseVoice(data.padId, data.startTime);
           break;
         case 'UPDATE_PAD_START_END':
           this.updateVoiceBoundaries(data);
@@ -154,12 +154,14 @@ class VoiceProcessor extends AudioWorkletProcessor {
     });
   }
 
-  releaseVoice(padId) {
+  releaseVoice(padId, startTime) {
+    const sr = sampleRate || 44100;
+    const releaseAtFrame = startTime !== undefined ? Math.floor(startTime * sr) : currentFrame;
+
     for (const voice of this.voices) {
       if (voice.padId === padId && !voice.finished && voice.envelope.phase !== 'release') {
         if (voice.triggerMode === 'GATE' || voice.triggerMode === 'LOOP') {
-          voice.envelope.phase = 'release';
-          voice.envelope.releaseT = 0;
+          voice.releaseAtFrame = releaseAtFrame;
         }
       }
     }
@@ -178,6 +180,12 @@ class VoiceProcessor extends AudioWorkletProcessor {
 
     for (const voice of this.voices) {
       if (voice.finished) continue;
+
+      // Check for scheduled release
+      if (voice.releaseAtFrame !== undefined && currentFrame >= voice.releaseAtFrame && voice.envelope.phase !== 'release') {
+        voice.envelope.phase = 'release';
+        voice.envelope.releaseT = 0;
+      }
 
       // Filter coefficient calculation (TPT SVF)
       // Cutoff frequency mapping
@@ -320,33 +328,48 @@ class VoiceProcessor extends AudioWorkletProcessor {
 
 // --- Recording Engine ---
 class RecorderProcessor extends AudioWorkletProcessor {
-  constructor(options) {
+  constructor() {
     super();
-    this.bufferSize = (options.processorOptions && options.processorOptions.bufferSize) || 1024;
-    this.buffer = new Float32Array(this.bufferSize);
-    this.index = 0;
+    this.isRecording = false;
+    // Pre-allocate 60 seconds of buffer at 48kHz (max safe)
+    // 60 * 48000 = 2,880,000 samples
+    this.maxSamples = 60 * 48000;
+    this.buffer = new Float32Array(this.maxSamples);
+    this.writeIndex = 0;
+
+    this.port.onmessage = (e) => {
+      const { type } = e.data;
+      if (type === 'START') {
+        this.writeIndex = 0;
+        this.isRecording = true;
+      } else if (type === 'STOP') {
+        this.isRecording = false;
+        // Send the relevant portion of the buffer back
+        const result = this.buffer.slice(0, this.writeIndex);
+        this.port.postMessage(result);
+        this.writeIndex = 0;
+      }
+    };
   }
 
-  process(inputs, outputs) {
+  process(inputs) {
+    if (!this.isRecording) return true;
+
     const input = inputs[0];
     if (input && input.length > 0) {
       const inputChannel = input[0];
-      const inputLength = inputChannel.length;
-
-      // Copy input samples to internal buffer
-      for (let i = 0; i < inputLength; i++) {
-        this.buffer[this.index] = inputChannel[i];
-        this.index++;
-
-        // When buffer is full, send to main thread
-        if (this.index >= this.bufferSize) {
-          // Clone the buffer to ensure the main thread gets a snapshot
-          this.port.postMessage(this.buffer.slice());
-          this.index = 0;
+      if (inputChannel) {
+        // Direct copy to pre-allocated buffer is extremely fast and Jitter-free
+        const samplesToCopy = Math.min(inputChannel.length, this.maxSamples - this.writeIndex);
+        if (samplesToCopy > 0) {
+          this.buffer.set(inputChannel.subarray(0, samplesToCopy), this.writeIndex);
+          this.writeIndex += samplesToCopy;
+        } else {
+          // Buffer full, stop automatically to prevent overflow
+          this.isRecording = false;
         }
       }
     }
-    // Keep processor alive
     return true;
   }
 }

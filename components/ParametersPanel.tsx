@@ -86,11 +86,11 @@ export const ParametersPanel: React.FC<ParametersPanelProps> = ({ isLandscape, i
             </div>
             {!isUltraSampleMode && (
               <div id="landscape-knobs" className="h-1/3 min-h-[140px] bg-zinc-900/10 overflow-y-auto grid grid-cols-5 gap-4 p-4 place-items-center content-center">
-                <Knob label="Pitch" min={0.1} max={4.0} value={activePad?.pitch || 1} onChange={(v) => updatePad(selectedPadIndex, { pitch: v })} />
-                <Knob label="Gain" min={0} max={2.0} value={activePad?.volume || 1} onChange={(v) => updatePad(selectedPadIndex, { volume: v })} />
-                <Knob label="Pan" min={-1} max={1} value={activePad?.pan || 0} onChange={(v) => updatePad(selectedPadIndex, { pan: v })} />
-                <Knob label="Cutoff kHz" min={0.02} max={20.0} value={(activePad?.cutoff || 20000) / 1000} onChange={(v) => updatePad(selectedPadIndex, { cutoff: v * 1000 })} />
-                <Knob label="Res" min={0} max={20} value={activePad?.resonance || 0} onChange={(v) => updatePad(selectedPadIndex, { resonance: v })} />
+                <Knob label="Pitch" min={0.1} max={4.0} value={activePad?.pitch || 1} defaultValue={1} onChange={(v) => updatePad(selectedPadIndex, { pitch: v })} />
+                <Knob label="Gain" min={0} max={2.0} value={activePad?.volume || 1} defaultValue={1} onChange={(v) => updatePad(selectedPadIndex, { volume: v })} />
+                <Knob label="Pan" min={-1} max={1} value={activePad?.pan || 0} defaultValue={0} onChange={(v) => updatePad(selectedPadIndex, { pan: v })} />
+                <Knob label="Cutoff kHz" min={0.02} max={20.0} value={(activePad?.cutoff || 20000) / 1000} defaultValue={20.0} onChange={(v) => updatePad(selectedPadIndex, { cutoff: v * 1000 })} />
+                <Knob label="Res" min={0} max={20} value={activePad?.resonance || 0} defaultValue={0} onChange={(v) => updatePad(selectedPadIndex, { resonance: v })} />
               </div>
             )}
           </div>
@@ -103,11 +103,11 @@ export const ParametersPanel: React.FC<ParametersPanelProps> = ({ isLandscape, i
             ) : (
               <div id="portrait-knobs" className="flex-1 flex items-center justify-around bg-black/40 p-1 overflow-hidden">
                 <div className="flex items-center justify-between w-full max-w-[600px] gap-0.5 sm:gap-4 scale-[0.85] xs:scale-100 transition-transform origin-center">
-                  <Knob label="Pitch" min={0.1} max={4.0} value={activePad?.pitch || 1} onChange={(v) => updatePad(selectedPadIndex, { pitch: v })} />
-                  <Knob label="Gain" min={0} max={2.0} value={activePad?.volume || 1} onChange={(v) => updatePad(selectedPadIndex, { volume: v })} />
-                  <Knob label="Pan" min={-1} max={1} value={activePad?.pan || 0} onChange={(v) => updatePad(selectedPadIndex, { pan: v })} />
-                  <Knob label="Cutoff" min={0.02} max={20.0} value={(activePad?.cutoff || 20000) / 1000} onChange={(v) => updatePad(selectedPadIndex, { cutoff: v * 1000 })} />
-                  <Knob label="Res" min={0} max={20} value={activePad?.resonance || 0} onChange={(v) => updatePad(selectedPadIndex, { resonance: v })} />
+                  <Knob label="Pitch" min={0.1} max={4.0} value={activePad?.pitch || 1} defaultValue={1} onChange={(v) => updatePad(selectedPadIndex, { pitch: v })} />
+                  <Knob label="Gain" min={0} max={2.0} value={activePad?.volume || 1} defaultValue={1} onChange={(v) => updatePad(selectedPadIndex, { volume: v })} />
+                  <Knob label="Pan" min={-1} max={1} value={activePad?.pan || 0} defaultValue={0} onChange={(v) => updatePad(selectedPadIndex, { pan: v })} />
+                  <Knob label="Cutoff" min={0.02} max={20.0} value={(activePad?.cutoff || 20000) / 1000} defaultValue={20.0} onChange={(v) => updatePad(selectedPadIndex, { cutoff: v * 1000 })} />
+                  <Knob label="Res" min={0} max={20} value={activePad?.resonance || 0} defaultValue={0} onChange={(v) => updatePad(selectedPadIndex, { resonance: v })} />
                 </div>
               </div>
             )}

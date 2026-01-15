@@ -6,11 +6,13 @@ interface KnobProps {
   value: number;
   min: number;
   max: number;
+  defaultValue?: number;
   onChange: (val: number) => void;
   color?: string;
+  precision?: number;
 }
 
-export const Knob: React.FC<KnobProps> = ({ label, value, min, max, onChange, color = 'border-retro-accent' }) => {
+export const Knob: React.FC<KnobProps> = ({ label, value, min, max, defaultValue, onChange, color = 'border-retro-accent', precision = 2 }) => {
   const [dragging, setDragging] = useState(false);
   const startYRef = useRef(0);
   const startValueRef = useRef(0);
@@ -19,7 +21,7 @@ export const Knob: React.FC<KnobProps> = ({ label, value, min, max, onChange, co
   const handlePointerDown = (e: React.PointerEvent) => {
     // Lock the pointer to this element so we get move/up events even if the finger leaves the knob
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    
+
     setDragging(true);
     startYRef.current = e.clientY;
     startValueRef.current = value;
@@ -27,14 +29,14 @@ export const Knob: React.FC<KnobProps> = ({ label, value, min, max, onChange, co
 
   const handlePointerMove = (e: React.PointerEvent) => {
     if (!dragging) return;
-    
+
     const deltaY = startYRef.current - e.clientY;
     const range = max - min;
-    
+
     // Sensitivity: 200 pixels for full range
     const deltaValue = (deltaY / 200) * range;
     let newValue = startValueRef.current + deltaValue;
-    
+
     // Clamp values
     newValue = Math.max(min, Math.min(max, newValue));
     onChange(newValue);
@@ -45,12 +47,18 @@ export const Knob: React.FC<KnobProps> = ({ label, value, min, max, onChange, co
     (e.target as HTMLElement).releasePointerCapture(e.pointerId);
   };
 
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    if (defaultValue !== undefined) {
+      onChange(defaultValue);
+    }
+  };
+
   const percentage = (value - min) / (max - min);
   const degrees = -135 + (percentage * 270);
 
   return (
     <div className="flex flex-col items-center gap-2 select-none w-20 touch-none">
-      <div 
+      <div
         ref={knobRef}
         role="slider"
         aria-label={label}
@@ -65,8 +73,9 @@ export const Knob: React.FC<KnobProps> = ({ label, value, min, max, onChange, co
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
+        onDoubleClick={handleDoubleClick}
       >
-        <div 
+        <div
           className="absolute top-0 left-0 w-full h-full rounded-full transition-transform duration-75"
           style={{ transform: `rotate(${degrees}deg)` }}
         >
@@ -76,7 +85,7 @@ export const Knob: React.FC<KnobProps> = ({ label, value, min, max, onChange, co
       </div>
       <span className="text-[10px] font-extrabold uppercase text-zinc-400 tracking-wider">{label}</span>
       <div className="bg-black/40 px-2 py-0.5 rounded border border-white/5 min-w-[50px] text-center">
-        <span className="text-[11px] font-extrabold text-retro-accent glow-red">{value.toFixed(2)}</span>
+        <span className="text-[11px] font-extrabold text-retro-accent glow-red">{value.toFixed(precision)}</span>
       </div>
     </div>
   );

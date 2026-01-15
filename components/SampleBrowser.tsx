@@ -15,6 +15,8 @@ interface SampleBrowserProps {
   isLandscape: boolean;
 }
 
+import { detectBPM } from '../utils/audioUtils';
+
 const WaveformThumbnail: React.FC<{ buffer?: AudioBuffer; waveform?: number[]; className?: string; color?: string }> = ({
   buffer,
   waveform,
@@ -81,6 +83,7 @@ const SampleItem: React.FC<{
   onSelect: (url: string, name: string) => void;
 }> = ({ meta, targetPadIndex, isPlaying, onPlay, onStop, onSelect }) => {
   const [buffer, setBuffer] = useState<AudioBuffer | null>(null);
+  const [detectedBpm, setDetectedBpm] = useState<number | null>(null);
   const sourceRef = useRef<AudioBufferSourceNode | null>(null);
   const { audioContext } = useAudioStore();
 
@@ -112,6 +115,8 @@ const SampleItem: React.FC<{
         const arrayBuffer = await resp.arrayBuffer();
         audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
         setBuffer(audioBuffer);
+        const bpm = detectBPM(audioBuffer);
+        setDetectedBpm(bpm);
       } catch (e) {
         console.error("Preview failed", e);
         onStop();
@@ -150,6 +155,12 @@ const SampleItem: React.FC<{
       <div className="flex-1 flex flex-col min-w-0">
         <span className="text-[8px] text-zinc-500 uppercase font-extrabold tracking-widest">{meta.bank}</span>
         <span className="font-extrabold text-[11px] uppercase text-zinc-200 truncate tracking-tight">{meta.name}</span>
+        {detectedBpm && (
+          <div className="flex items-center gap-1.5 mt-0.5 animate-in fade-in slide-in-from-left-1 duration-300">
+            <div className="w-1 h-1 rounded-full bg-retro-accent animate-pulse" />
+            <span className="text-[9px] font-black text-retro-accent italic tracking-tighter uppercase">{detectedBpm} BPM</span>
+          </div>
+        )}
       </div>
 
       <button
@@ -438,7 +449,6 @@ export const SampleBrowser: React.FC<SampleBrowserProps> = ({ onClose, isLandsca
           {status}
         </div>
       )}
-      {showRecModal && <RecordingModal onClose={() => setShowRecModal(false)} targetPadIndex={targetPadIndex} />}
       {showPackManager && <SamplePackManager onClose={() => setShowPackManager(false)} />}
     </div>
   );

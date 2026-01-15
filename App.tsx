@@ -254,6 +254,8 @@ const App: React.FC = () => {
       if (timerRef.current) cancelAnimationFrame(timerRef.current);
       timerRef.current = undefined;
       setStep(-1);
+      currentStepRef.current = 0;
+      usePadStore.getState().resetAllPads();
       useAudioStore.getState().stopAll();
     }
     return () => { if (timerRef.current) cancelAnimationFrame(timerRef.current); timerRef.current = undefined; }
@@ -281,6 +283,10 @@ const App: React.FC = () => {
         const [channelId, padIndexStr] = trackKey.split('-');
         const padIndex = parseInt(padIndexStr);
 
+        const secondsPerBeat = 60.0 / bpmRef.current;
+        const stepTimeInSeconds = 0.25 * secondsPerBeat;
+        const releaseTime = time + (stepData.length * stepTimeInSeconds);
+
         usePadStore.getState().triggerPad(
           padIndex,
           (stepData.velocity / 127),
@@ -288,6 +294,12 @@ const App: React.FC = () => {
           time,
           channelId as ChannelId
         );
+
+        // Schedule release for GATE/LOOP modes
+        // If length is at max (16.0), treat as full/infinite duration
+        if (stepData.length < 16.0) {
+          usePadStore.getState().stopPad(padIndex, releaseTime, channelId as ChannelId);
+        }
       }
     }
   };

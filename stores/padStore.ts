@@ -19,7 +19,7 @@ interface PadState {
   updatePad: (index: number, updates: Partial<Pad>) => void;
   loadSample: (index: number, url: string, name: string) => Promise<void>;
   triggerPad: (index: number, velocity?: number, pitchOverrideMultiplier?: number, startTime?: number, channelId?: ChannelId) => void;
-  stopPad: (index: number) => void;
+  stopPad: (index: number, startTime?: number, channelId?: ChannelId) => void;
   toggleMute: (index: number) => void;
   toggleSolo: (index: number) => void;
   clearPad: (index: number) => void;
@@ -34,6 +34,7 @@ interface PadState {
 
   // Helpers for Project Service
   setPadsFromData: (pads: Record<string, Pad>) => void;
+  resetAllPads: () => void;
 }
 
 const DEFAULT_ENVELOPE: Envelope = { attack: 0.001, decay: 0.1, sustain: 1, release: 0.05 };
@@ -383,9 +384,10 @@ export const usePadStore = create<PadState>((set, get) => ({
     }
   },
 
-  stopPad: (index) => {
+  stopPad: (index: number, startTime?: number, channelId?: ChannelId) => {
     const { pads, currentChannel } = get();
-    const id = `${currentChannel}-${index}`;
+    const effectiveChannel = channelId || currentChannel;
+    const id = `${effectiveChannel}-${index}`;
     const pad = pads[id];
     if (pad) {
       set(state => ({
@@ -395,7 +397,7 @@ export const usePadStore = create<PadState>((set, get) => ({
         }
       }));
     }
-    useAudioStore.getState().stopPad(id);
+    useAudioStore.getState().stopPad(id, startTime);
   },
 
   loadSamplePack: async (packId) => {
@@ -430,5 +432,14 @@ export const usePadStore = create<PadState>((set, get) => ({
     await dbService.saveSamplePack(updatedPack);
     const newPacks = await dbService.getAllSamplePacks();
     set({ samplePacks: newPacks });
+  },
+
+  resetAllPads: () => {
+    const { pads } = get();
+    const newPads = { ...pads };
+    Object.keys(newPads).forEach(id => {
+      newPads[id] = { ...newPads[id], isHeld: false, lastTriggerTime: undefined };
+    });
+    set({ pads: newPads });
   }
 }));

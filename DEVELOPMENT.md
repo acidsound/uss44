@@ -7,13 +7,13 @@ This document provides a comprehensive technical overview of the Social Sampler 
 ## 1. Project Overview
 Social Sampler is a web-based MPC-style sampler designed for real-time audio performance and creative sampling from social media sources.
 
-- **Core Features**: 4x4 Pad Grid (64 pads organized into 4 **Channels**), Social/YouTube extraction, Local video processing, 32-voice DSP engine, Step sequencer, Master effects, WAV export, and Mobile-first touch optimization.
+- **Core Features**: 4x4 Pad Grid, Dynamic Sample Pack Loading (JSON URLs), Autocorrelation-based BPM Detection, 32-voice DSP engine, Step sequencer, Master effects, and Mobile-first touch optimization.
 - **Tech Stack**: 
   - **Frontend**: Vite, React 19, TypeScript
   - **State Management**: Zustand
   - **Audio Engine**: Web Audio API (Custom AudioWorklet)
   - **Processing**: `ffmpeg.wasm` (Local video extraction)
-  - **Storage**: IndexedDB (Audio data persistence)
+  - **Storage**: IndexedDB (Audio data persistence, Sample pack definitions)
 - **Terminology**:
   - **Channel**: A performance group of 16 pads (A, B, C, D).
   - **Bank**: A library category for grouping samples in the Dig Library.
@@ -132,15 +132,18 @@ Global synchronization state: BPM (20-300), Play/Stop state, and current sequenc
 
 ## 5. Key Component Implementation Details
 
-### `Waveform.tsx`
+### `SampleBrowser.tsx` & `SamplePackManager.tsx`
+- **Dynamic Loading**: Users can add custom JSON URLs to fetch external library metadata.
+- **BPM Detection**: Uses an autocorrelation-based periodic analysis algorithm to estimate BPM during preview.
+- **Persistence**: Sample pack lists and currently active pack selection are stored in IndexedDB.
+
+### `Waveform.tsx` / `WaveformEditor.tsx`
 - **Rendering**: Canvas-based. Always scale using `window.devicePixelRatio` for sharp rendering on high-DPI screens.
+- **Playhead**: Real-time playback position visualizer connected to `audioContext.currentTime`. Resets on transport stop.
 - **Start/End Points**: Normalized 0-1 handles that update the selected pad's `startPoint` and `endPoint`.
-- **Auto-Crop Algorithm (`audioUtils.ts`)**:
-  1. Find peak amplitude in the buffer.
-  2. Set a silence threshold (5% of peak).
-  3. Scan from start to find first sample above threshold.
-  4. Scan from end to find last sample above threshold.
-  5. Return normalized positions.
+- **Auto-Crop Algorithm**:
+  1. Find peak amplitude, scan for silence threshold (2%).
+  2. Return normalized positions with safety padding.
 
 ### `PadGrid.tsx`
 - **Dual Mode**:
@@ -188,8 +191,9 @@ const scheduler = () => {
 Uses `social-sampler-db` to persist audio data between sessions.
 
 - **Store: `samples`**: Stores metadata and raw `ArrayBuffer` data.
-- **Store: `pad-assignments`**: Stores the links between pads and sample IDs.
-- **Initialization**: On app load, `restoreSamplesFromCache()` retrieves all saved buffers and sends them to the `VoiceWorklet` immediately.
+- **Store: `sample-packs`**: Stores user-defined library sources (JSON URLs).
+- **Store: `pad-configs`**: Stores individual pad parameters including sample assignments.
+- **Initialization**: On app load, `restoreSamplesFromCache()` retrieves all saved buffers and sends them to the `VoiceWorklet` immediately. `loadSamplePack` fetches remote metadata for the library.
 
 ---
 

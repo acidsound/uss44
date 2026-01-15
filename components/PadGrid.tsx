@@ -210,6 +210,9 @@ export const PadGrid: React.FC<PadGridProps> = ({
         let shadowClass = '';
         let ringClass = '';
 
+        let stepBorderEffect = {};
+        let stepLedStyle = {};
+
         if (isSequenceMode) {
           // Sequence Mode Styling
           if (isPlayhead) {
@@ -219,9 +222,23 @@ export const PadGrid: React.FC<PadGridProps> = ({
             shadowClass = 'shadow-[0_0_15px_rgba(52,211,153,0.5)]';
           } else if (isActiveStep) {
             // Active Step
+            const velocity = Math.round(stepData?.velocity || 0);
+            const velFactor = velocity / 127;
+            // 0 velocity should be very dark (ghost note), 1 should be slightly visible
+            const intensity = velocity === 0 ? 0.05 : 0.2 + (velFactor * 0.8);
+
             bgClass = 'bg-zinc-800';
-            borderClass = 'border-retro-accent';
-            shadowClass = 'shadow-[0_0_10px_rgba(255,30,86,0.3)]';
+            // Use inline styles for dynamic brightness
+            stepBorderEffect = {
+              borderColor: `rgba(255, 30, 86, ${intensity})`,
+              boxShadow: velocity === 0 ? 'none' : `0 0 ${8 * velFactor}px rgba(255, 30, 86, ${0.4 * velFactor})`
+            };
+            shadowClass = ''; // Handled by inline style
+
+            stepLedStyle = {
+              backgroundColor: `rgba(255, 30, 86, ${intensity})`,
+              boxShadow: velocity === 0 ? 'none' : `0 0 ${10 * velFactor}px rgba(255, 30, 86, ${0.8 * velFactor})`
+            };
           } else {
             // Inactive Step
             bgClass = 'bg-retro-pad';
@@ -231,6 +248,7 @@ export const PadGrid: React.FC<PadGridProps> = ({
           if (isSelected) {
             ringClass = 'ring-4 ring-white/10 z-10';
             borderClass = 'border-white';
+            stepBorderEffect = {}; // Reset inline border if selected to let border-white win
           }
 
         } else {
@@ -280,6 +298,7 @@ export const PadGrid: React.FC<PadGridProps> = ({
             onMouseUp={() => handlePadEnd('mouse')}
             onMouseEnter={(e) => handleMouseEnter(idx, e)}
             onMouseLeave={() => handleMouseLeave(idx)}
+            style={stepBorderEffect}
             className={`
               relative transition-all duration-75 flex flex-col items-center justify-center overflow-hidden rounded-xl
               border-2 active:shadow-none active:translate-x-[2px] active:translate-y-[2px]
@@ -304,6 +323,7 @@ export const PadGrid: React.FC<PadGridProps> = ({
                 ? (isPlayhead ? 'bg-emerald-400 shadow-[0_0_8px_#34d399]' : isActiveStep ? 'bg-retro-accent shadow-[0_0_8px_#ff1e56]' : 'bg-zinc-900')
                 : (isHeldLocally || isSelected || isTriggeredBySeq ? 'bg-retro-accent shadow-[0_0_8px_#ff1e56]' : 'bg-zinc-900')
               }`}
+              style={Object.keys(stepLedStyle).length > 0 && !isPlayhead ? stepLedStyle : {}}
             ></div>
 
             {/* Visual indicator for UltraSample Mode */}
@@ -336,8 +356,8 @@ export const PadGrid: React.FC<PadGridProps> = ({
 
               {isSequenceMode && stepData?.active && (
                 <div className="flex flex-col items-center mt-1 w-full gap-0.5">
-                  <span className="text-[8px] font-extrabold text-white leading-none">VEL:{stepData.velocity}</span>
-                  {stepData.pitch !== 0 && <span className="text-[8px] font-extrabold text-retro-accent leading-none">P:{stepData.pitch}</span>}
+                  <span className="text-[8px] font-extrabold text-white leading-none">VEL:{Math.round(stepData.velocity)}</span>
+                  {stepData.pitch !== 0 && <span className="text-[8px] font-extrabold text-retro-accent leading-none">P:{Math.round(stepData.pitch)}</span>}
                 </div>
               )}
             </div>

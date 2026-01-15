@@ -22,7 +22,7 @@ interface AudioState {
   loadSampleToWorklet: (id: string, buffer: AudioBuffer) => void;
   removeSampleFromWorklet: (id: string) => void;
   triggerPad: (data: any) => void;
-  stopPad: (padId: string) => void;
+  stopPad: (padId: string, startTime?: number) => void;
   updatePadStartEnd: (padId: string, start: number, end: number) => void;
   updatePadParams: (padId: string, params: { cutoff?: number, resonance?: number, pitch?: number, volume?: number, pan?: number }) => void;
   stopAll: () => void;
@@ -56,7 +56,11 @@ export const useAudioStore = create<AudioState>((set, get) => ({
 
     // Use external context if provided, otherwise create new one
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    const ctx = externalCtx || new AudioContextClass({ latencyHint: 'interactive' });
+    // Forcing 44100 often solves sample rate drift/mismatch issues on many audio interfaces
+    const ctx = externalCtx || new AudioContextClass({
+      latencyHint: 'interactive',
+      sampleRate: 44100
+    });
 
     try {
       // Fetch the worklet processor code with cache busting
@@ -64,7 +68,7 @@ export const useAudioStore = create<AudioState>((set, get) => ({
       const response = await fetch(`assets/worklets/VoiceProcessor.js?v=${Date.now()}`);
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch worklet: ${response.status} ${response.statusText}`);
+        throw new Error(`Worklet fetch failed: ${response.status}`);
       }
 
       const workletCode = await response.text();
@@ -106,7 +110,7 @@ export const useAudioStore = create<AudioState>((set, get) => ({
 
   resume: async () => {
     const { audioContext } = get();
-    if (audioContext && audioContext.state === 'suspended') {
+    if (audioContext && (audioContext.state === 'suspended' || audioContext.state === 'interrupted')) {
       await audioContext.resume();
     }
   },
@@ -146,12 +150,12 @@ export const useAudioStore = create<AudioState>((set, get) => ({
     }
   },
 
-  stopPad: (padId: string) => {
+  stopPad: (padId: string, startTime?: number) => {
     const { workletNode } = get();
     if (workletNode) {
       workletNode.port.postMessage({
         type: 'RELEASE_PAD',
-        data: { padId }
+        data: { padId, startTime }
       });
     }
   },
@@ -197,7 +201,7 @@ export const useAudioStore = create<AudioState>((set, get) => ({
     }
 
     if (!window.isSecureContext && window.location.hostname !== 'localhost') {
-      alert("Microphone recording requires a secure context (HTTPS). On some browsers, it won't work over insecure Network IP connections.");
+      alert("Microphone recording requires a secure context (HTTPS).");
       return;
     }
 
@@ -207,52 +211,23 @@ export const useAudioStore = create<AudioState>((set, get) => ({
         audio: {
           echoCancellation: false,
           noiseSuppression: false,
-          autoGainControl: false
+          autoGainControl: false,
+          sampleRate: 44100
         }
       });
 
-      const source = audioContext.createMediaStreamSource(stream);
-      const analyser = audioContext.createAnalyser();
+      const source = activeCtx.createMediaStreamSource(stream);
+      const analyser = activeCtx.createAnalyser();
       analyser.fftSize = 2048;
-      analyser.smoothingTimeConstant = 0.5;
 
-      const recorderNode = new AudioWorkletNode(audioContext, 'recorder-processor', {
-        numberOfInputs: 1,
-        numberOfOutputs: 1,
-        processorOptions: {
-          bufferSize: 1024
-        }
-      });
-
-      const silentGain = audioContext.createGain();
+      const recorderNode = new AudioWorkletNode(activeCtx, 'recorder-processor');
+      const silentGain = activeCtx.createGain();
       silentGain.gain.value = 0;
 
       source.connect(analyser);
       source.connect(recorderNode);
       recorderNode.connect(silentGain);
-      silentGain.connect(audioContext.destination);
-
-      recorderNode.port.onmessage = (e) => {
-        const chunk = e.data;
-        if (!chunk || chunk.length === 0) return;
-
-        set((state) => {
-          if (state.isRecording) {
-            // During recording, we only add to recordedChunks.
-            // We stop updating preRollChunks to avoid mixing logic.
-            return {
-              recordedChunks: [...state.recordedChunks, chunk]
-            };
-          } else {
-            // Maintain a rolling pre-roll buffer when NOT recording
-            const updatedPreRoll = [...state.preRollChunks, chunk];
-            if (updatedPreRoll.length > 25) {
-              updatedPreRoll.shift();
-            }
-            return { preRollChunks: updatedPreRoll };
-          }
-        });
-      };
+      silentGain.connect(activeCtx.destination);
 
       // Keep node alive by referencing it in store
       set({
@@ -262,13 +237,12 @@ export const useAudioStore = create<AudioState>((set, get) => ({
         recorderNode: recorderNode
       });
 
-      if (audioContext.state === 'suspended') {
-        await audioContext.resume();
+      if (activeCtx.state === 'suspended') {
+        await activeCtx.resume();
       }
 
     } catch (e) {
       console.error("Mic Initialization Failed:", e);
-      alert("Microphone access failed. Please ensure permissions are granted.");
     }
   },
 
@@ -283,40 +257,43 @@ export const useAudioStore = create<AudioState>((set, get) => ({
       micAnalyser: null,
       recorderNode: null,
       isRecording: false,
-      preRollChunks: [],
       recordedChunks: []
     });
   },
 
   startRecording: () => {
-    // When we start recording, we keep the existing preRollChunks as our prefix.
-    set({ isRecording: true, recordedChunks: [] });
+    const { recorderNode } = get();
+    if (recorderNode) {
+      recorderNode.port.postMessage({ type: 'START' });
+      set({ isRecording: true });
+    }
   },
 
   stopRecording: async () => {
-    const { audioContext, recordedChunks, preRollChunks, isRecording } = get();
-    set({ isRecording: false });
+    const { recorderNode, audioContext } = get();
+    if (!recorderNode || !audioContext) return null;
 
-    // Chronological order: Oldest Pre-roll -> Newest Pre-roll -> Recorded Chunks
-    const allChunks = [...preRollChunks, ...recordedChunks];
+    return new Promise((resolve) => {
+      const onMessage = (e: MessageEvent) => {
+        const data: Float32Array = e.data;
+        recorderNode.port.removeEventListener('message', onMessage);
 
-    if (!audioContext || allChunks.length === 0) {
-      return null;
-    }
+        if (!data || data.length === 0) {
+          set({ isRecording: false });
+          resolve(null);
+          return;
+        }
 
-    const length = allChunks.reduce((acc, chunk) => acc + chunk.length, 0);
-    const buffer = audioContext.createBuffer(1, length, audioContext.sampleRate);
-    const channelData = buffer.getChannelData(0);
+        const buffer = audioContext.createBuffer(1, data.length, audioContext.sampleRate);
+        buffer.getChannelData(0).set(data);
 
-    let offset = 0;
-    for (const chunk of allChunks) {
-      channelData.set(chunk, offset);
-      offset += chunk.length;
-    }
+        set({ isRecording: false });
+        resolve(buffer);
+      };
 
-    // Reset both to prevent double-concatenation on next recording
-    set({ recordedChunks: [], preRollChunks: [] });
-
-    return buffer;
+      recorderNode.port.addEventListener('message', onMessage);
+      recorderNode.port.start();
+      recorderNode.port.postMessage({ type: 'STOP' });
+    });
   }
 }));

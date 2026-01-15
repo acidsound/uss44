@@ -1,9 +1,10 @@
-
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { ZoomIn, ZoomOut, Scissors, Hash, Clock, MousePointer2, Magnet, Repeat, PlayCircle, Hand } from 'lucide-react';
 import { usePadStore } from '../stores/padStore';
 import { useAudioStore } from '../stores/audioStore';
+import { useSequencerStore } from '../stores/sequencerStore';
 import { TriggerMode } from '../types';
+import { detectBPM, calculateLoopBPM } from '../utils/audioUtils';
 
 interface WaveformEditorProps {
   isUltraSampleMode?: boolean;
@@ -12,8 +13,17 @@ interface WaveformEditorProps {
 export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMode = false }) => {
   const { currentChannel, selectedPadId, pads, updatePad } = usePadStore();
   const { audioContext, micAnalyser, isRecording } = useAudioStore();
+  const { setBpm } = useSequencerStore();
   const selectedPadIndex = parseInt(selectedPadId.split('-')[1]);
   const activePad = pads[`${currentChannel}-${selectedPadIndex}`];
+
+  const detectedBpm = useMemo(() => {
+    if (activePad?.buffer) {
+      const sliceDuration = (activePad.end - activePad.start) * activePad.buffer.duration;
+      return calculateLoopBPM(sliceDuration);
+    }
+    return null;
+  }, [activePad?.buffer, activePad?.start, activePad?.end]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -486,6 +496,31 @@ export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMod
           )}
         </div>
         <div id="waveform-tools-right" className="flex items-stretch h-full">
+          {activePad?.triggerMode === 'LOOP' && detectedBpm && (
+            <div
+              id="detected-bpm-display"
+              onClick={() => setBpm(detectedBpm)}
+              className="px-2 flex items-center gap-1.5 border-l border-zinc-800 bg-retro-accent/5 animate-in fade-in slide-in-from-right-2 duration-500 cursor-pointer hover:bg-retro-accent/10 active:scale-95 transition-all group/bpm"
+              title="Click to sync project tempo"
+            >
+              <div className="w-1.5 h-1.5 rounded-full bg-retro-accent animate-pulse shadow-[0_0_8px_rgba(255,30,86,0.6)] group-hover/bpm:scale-125 transition-transform" />
+              <span className="text-[10px] font-black text-white italic tracking-tighter uppercase whitespace-nowrap">
+                {detectedBpm}
+              </span>
+              <span className="text-retro-accent text-[8px] not-italic group-hover/bpm:text-white transition-colors">BPM</span>
+            </div>
+          )}
+          {!isUltraSampleMode && (
+            <button
+              id="btn-toggle-snap"
+              onClick={() => setAutoSnap(!autoSnap)}
+              className={`px-2 border-l border-zinc-800 transition-colors flex items-center gap-1 text-[8px] font-bold uppercase ${autoSnap ? 'text-retro-accent bg-retro-accent/5' : 'text-zinc-500 hover:text-zinc-300'}`}
+              title="Zero-Crossing Snap"
+            >
+              <Magnet size={10} />
+              <span className="hidden sm:inline">Snap</span>
+            </button>
+          )}
           <button id="btn-toggle-ruler" onClick={() => setRulerMode(rulerMode === 'TIME' ? 'SAMPLES' : 'TIME')} className="px-2 border-l border-zinc-800 hover:text-white transition-colors flex items-center gap-1 text-[8px] font-bold uppercase text-zinc-400">
             {rulerMode === 'TIME' ? <Clock size={10} /> : <Hash size={10} />}
             <span className="hidden sm:inline">{rulerMode}</span>

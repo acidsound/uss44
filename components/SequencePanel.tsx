@@ -25,9 +25,9 @@ export const SequencePanel: React.FC = () => {
         </div>
       </div>
       <div id="sequence-controls" className="flex-1 grid grid-cols-3 gap-4 p-6 place-items-center bg-black/40">
-        <Knob label="Velocity" min={0} max={127} value={activeStepData?.velocity || 0} onChange={(v) => updateStepData(currentChannel, selectedPadIndex, selectedStepIndex, { velocity: Math.round(v) })} />
-        <Knob label="Pitch" min={-24} max={24} value={activeStepData?.pitch || 0} onChange={(v) => updateStepData(currentChannel, selectedPadIndex, selectedStepIndex, { pitch: Math.round(v) })} />
-        <Knob label="Length" min={0.1} max={4.0} value={activeStepData?.length || 1.0} onChange={(v) => updateStepData(currentChannel, selectedPadIndex, selectedStepIndex, { length: v })} />
+        <Knob label="Velocity" min={0} max={127} value={activeStepData?.velocity || 0} defaultValue={100} onChange={(v) => updateStepData(currentChannel, selectedPadIndex, selectedStepIndex, { velocity: Math.round(v) })} precision={0} />
+        <Knob label="Pitch" min={-24} max={24} value={activeStepData?.pitch || 0} defaultValue={0} onChange={(v) => updateStepData(currentChannel, selectedPadIndex, selectedStepIndex, { pitch: Math.round(v) })} />
+        <Knob label="Length" min={0.1} max={16.0} value={activeStepData?.length || 1.0} defaultValue={1.0} onChange={(v) => updateStepData(currentChannel, selectedPadIndex, selectedStepIndex, { length: v })} />
       </div>
     </div>
   );
