@@ -9,14 +9,14 @@ interface SequencerState {
   isPlaying: boolean;
   currentStep: number;
   selectedStepIndex: number; // The step currently being edited in SEQUENCE mode
-  patterns: Record<string, StepData[]>; // Key: "Bank-PadIndex" (e.g. "A-0")
+  patterns: Record<string, StepData[]>; // Key: "Channel-PadIndex" (e.g. "A-0")
 
   setBpm: (bpm: number) => void;
   togglePlay: () => void;
   setStep: (step: number) => void;
   setSelectedStepIndex: (index: number) => void;
-  toggleStep: (bank: string, padIndex: number, stepIndex: number) => void;
-  updateStepData: (bank: string, padIndex: number, stepIndex: number, updates: Partial<StepData>) => void;
+  toggleStep: (channel: string, padIndex: number, stepIndex: number) => void;
+  updateStepData: (channel: string, padIndex: number, stepIndex: number, updates: Partial<StepData>) => void;
 
   initSequencer: () => Promise<void>;
   resetSequencer: () => void;
@@ -71,8 +71,8 @@ export const useSequencerStore = create<SequencerState>((set, get) => ({
 
   setSelectedStepIndex: (index) => set({ selectedStepIndex: index }),
 
-  toggleStep: (bank, padIndex, stepIndex) => {
-    const key = `${bank}-${padIndex}`;
+  toggleStep: (channel, padIndex, stepIndex) => {
+    const key = `${channel}-${padIndex}`;
     const { patterns } = get();
     const track = patterns[key] || Array.from({ length: STEPS_PER_BAR }, createDefaultStep);
     const newTrack = track.map((s, i) => i === stepIndex ? { ...s, active: !s.active } : s);
@@ -81,8 +81,8 @@ export const useSequencerStore = create<SequencerState>((set, get) => ({
     dbService.saveSequence(key, newTrack);
   },
 
-  updateStepData: (bank, padIndex, stepIndex, updates) => {
-    const key = `${bank}-${padIndex}`;
+  updateStepData: (channel, padIndex, stepIndex, updates) => {
+    const key = `${channel}-${padIndex}`;
     const { patterns } = get();
     const track = patterns[key] || Array.from({ length: STEPS_PER_BAR }, createDefaultStep);
     const newTrack = track.map((s, i) => i === stepIndex ? { ...s, ...updates } : s);

@@ -18,7 +18,7 @@ import { SequencePanel } from './components/SequencePanel';
 import { BpmModal } from './components/BpmModal';
 import { SettingsMenu } from './components/SettingsMenu';
 import { PadMenu } from './components/PadMenu';
-import { AppMode, BankId } from './types';
+import { AppMode, ChannelId } from './types';
 import { STEPS_PER_BAR } from './constants';
 
 const KEY_TO_PAD: Record<string, number> = {
@@ -39,7 +39,7 @@ const App: React.FC = () => {
   const [padMenuAnchor, setPadMenuAnchor] = useState<DOMRect | undefined>(undefined);
 
   const { initialize, resume, initialized, initMic, closeMic, startRecording, stopRecording, loadSampleToWorklet } = useAudioStore((state) => state);
-  const { initPads, currentBank, setBank, selectedPadId, selectPad, triggerPad, stopPad, updatePad, isHydrating } = usePadStore((state) => state);
+  const { initPads, currentChannel, setChannel, selectedPadId, selectPad, triggerPad, stopPad, updatePad, isHydrating } = usePadStore((state) => state);
   const { bpm, isPlaying, currentStep, setStep, togglePlay, toggleStep, setSelectedStepIndex, initSequencer } = useSequencerStore((state) => state);
 
   const selectedPadIndex = parseInt(selectedPadId.split('-')[1]);
@@ -62,7 +62,7 @@ const App: React.FC = () => {
     const buffer = await stopRecording();
 
     if (buffer && buffer.length > 1000) {
-      const sampleId = `${currentBank}-${padIdx}-ultra-${Date.now()}`;
+      const sampleId = `${currentChannel}-${padIdx}-ultra-${Date.now()}`;
       const data = buffer.getChannelData(0);
       const arrayBuffer = data.buffer.slice(0);
 
@@ -129,7 +129,7 @@ const App: React.FC = () => {
       });
 
     }
-  }, [isUltraSampleMode, currentBank, loadSampleToWorklet, updatePad, stopRecording]);
+  }, [isUltraSampleMode, currentChannel, loadSampleToWorklet, updatePad, stopRecording]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -150,7 +150,7 @@ const App: React.FC = () => {
           if (isEditMode) {
             setSelectedStepIndex(padIdx);
           } else {
-            toggleStep(currentBank, selectedPadIndex, padIdx);
+            toggleStep(currentChannel, selectedPadIndex, padIdx);
             setSelectedStepIndex(padIdx);
           }
         } else if (isEditMode) {
@@ -186,7 +186,7 @@ const App: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [mode, currentBank, selectedPadIndex, togglePlay, selectPad, triggerPad, stopPad, toggleStep, setSelectedStepIndex, isUltraSampleMode, isEditMode, handleUltraRecordStart, handleUltraRecordStop]);
+  }, [mode, currentChannel, selectedPadIndex, togglePlay, selectPad, triggerPad, stopPad, toggleStep, setSelectedStepIndex, isUltraSampleMode, isEditMode, handleUltraRecordStart, handleUltraRecordStop]);
 
   useEffect(() => {
     const startApp = async () => {
@@ -218,11 +218,11 @@ const App: React.FC = () => {
     }
   };
 
-  const cycleBank = () => {
-    const banks: BankId[] = ['A', 'B', 'C', 'D'];
-    const currentIndex = banks.indexOf(currentBank);
-    const nextBank = banks[(currentIndex + 1) % 4];
-    setBank(nextBank);
+  const cycleChannel = () => {
+    const channels: ChannelId[] = ['A', 'B', 'C', 'D'];
+    const currentIndex = channels.indexOf(currentChannel);
+    const nextChannel = channels[(currentIndex + 1) % 4];
+    setChannel(nextChannel);
   };
 
   const nextNoteTimeRef = useRef(0);
@@ -276,8 +276,18 @@ const App: React.FC = () => {
       if (track && track[step] && track[step].active) {
         const stepData = track[step];
         const pitchMultiplier = Math.pow(2, stepData.pitch / 12);
-        const padIndex = parseInt(trackKey.split('-')[1]);
-        usePadStore.getState().triggerPad(padIndex, (stepData.velocity / 127), pitchMultiplier, time);
+
+        // Key format is "Channel-PadIndex" (e.g. "A-0")
+        const [channelId, padIndexStr] = trackKey.split('-');
+        const padIndex = parseInt(padIndexStr);
+
+        usePadStore.getState().triggerPad(
+          padIndex,
+          (stepData.velocity / 127),
+          pitchMultiplier,
+          time,
+          channelId as ChannelId
+        );
       }
     }
   };
@@ -341,12 +351,12 @@ const App: React.FC = () => {
             </button>
 
             <button
-              id="lcd-bank"
-              onClick={cycleBank}
+              id="lcd-channel"
+              onClick={cycleChannel}
               className="flex flex-col items-center gap-0.5 hover:bg-white/10 p-1 rounded transition-colors active:scale-95"
             >
-              <span className="text-zinc-500 text-[8px] tracking-widest">BANK</span>
-              <span className="leading-none text-white">{currentBank}</span>
+              <span className="text-zinc-500 text-[8px] tracking-widest">CH.</span>
+              <span className="leading-none text-white">{currentChannel}</span>
             </button>
 
             <button

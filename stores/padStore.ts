@@ -1,24 +1,24 @@
 
 import { create } from 'zustand';
-import { Pad, BankId, Envelope, SampleMetadata, TriggerMode } from '../types';
+import { Pad, ChannelId, Envelope, SampleMetadata, TriggerMode } from '../types';
 import { useAudioStore } from './audioStore';
 import { PAD_COLORS, SAMPLE_SET_URL } from '../constants';
 import { dbService } from '../services/dbService';
 
 interface PadState {
   pads: Record<string, Pad>;
-  currentBank: BankId;
+  currentChannel: ChannelId;
   selectedPadId: string;
   isHydrating: boolean;
   sampleLibrary: SampleMetadata[];
 
   initPads: () => Promise<void>;
   resetPads: () => void;
-  setBank: (bank: BankId) => void;
+  setChannel: (channel: ChannelId) => void;
   selectPad: (index: number) => void;
   updatePad: (index: number, updates: Partial<Pad>) => void;
   loadSample: (index: number, url: string, name: string) => Promise<void>;
-  triggerPad: (index: number, velocity?: number, pitchOverrideMultiplier?: number, startTime?: number) => void;
+  triggerPad: (index: number, velocity?: number, pitchOverrideMultiplier?: number, startTime?: number, channelId?: ChannelId) => void;
   stopPad: (index: number) => void;
   toggleMute: (index: number) => void;
   toggleSolo: (index: number) => void;
@@ -47,13 +47,13 @@ export const generateWaveform = (buffer: AudioBuffer, points: number = 200): num
 
 const createBasePads = () => {
   const pads: Record<string, Pad> = {};
-  const banks: BankId[] = ['A', 'B', 'C', 'D'];
-  banks.forEach(bank => {
+  const channels: ChannelId[] = ['A', 'B', 'C', 'D'];
+  channels.forEach(channel => {
     for (let i = 0; i < 16; i++) {
-      const id = `${bank}-${i}`;
+      const id = `${channel}-${i}`;
       pads[id] = {
         id: `pad-${i}`,
-        bankId: bank,
+        channelId: channel,
         sampleId: null,
         sampleName: '',
         volume: 1.0,
@@ -79,7 +79,7 @@ const createBasePads = () => {
 
 export const usePadStore = create<PadState>((set, get) => ({
   pads: createBasePads(),
-  currentBank: 'A',
+  currentChannel: 'A',
   selectedPadId: 'pad-0',
   isHydrating: false,
   sampleLibrary: [],
@@ -181,12 +181,12 @@ export const usePadStore = create<PadState>((set, get) => ({
     set({ isHydrating: false });
   },
 
-  setBank: (bank) => set({ currentBank: bank }),
+  setChannel: (channel) => set({ currentChannel: channel }),
   selectPad: (index) => set({ selectedPadId: `pad-${index}` }),
 
   updatePad: (index, updates) => {
-    const { pads, currentBank } = get();
-    const id = `${currentBank}-${index}`;
+    const { pads, currentChannel } = get();
+    const id = `${currentChannel}-${index}`;
     const pad = pads[id];
     if (!pad) return;
 
@@ -235,8 +235,8 @@ export const usePadStore = create<PadState>((set, get) => ({
   },
 
   toggleMute: (index) => {
-    const { pads, currentBank } = get();
-    const id = `${currentBank}-${index}`;
+    const { pads, currentChannel } = get();
+    const id = `${currentChannel}-${index}`;
     const pad = pads[id];
     if (pad) {
       const updates = { mute: !pad.mute };
@@ -246,8 +246,8 @@ export const usePadStore = create<PadState>((set, get) => ({
   },
 
   toggleSolo: (index) => {
-    const { pads, currentBank } = get();
-    const id = `${currentBank}-${index}`;
+    const { pads, currentChannel } = get();
+    const id = `${currentChannel}-${index}`;
     const pad = pads[id];
     if (pad) {
       const updates = { solo: !pad.solo };
@@ -257,8 +257,8 @@ export const usePadStore = create<PadState>((set, get) => ({
   },
 
   clearPad: (index) => {
-    const { pads, currentBank } = get();
-    const id = `${currentBank}-${index}`;
+    const { pads, currentChannel } = get();
+    const id = `${currentChannel}-${index}`;
     const currentPad = pads[id];
     const basePads = createBasePads();
     const defaultPad = basePads[id];
@@ -272,7 +272,7 @@ export const usePadStore = create<PadState>((set, get) => ({
   },
 
   loadSample: async (index, url, name) => {
-    const { pads, currentBank } = get();
+    const { pads, currentChannel } = get();
     const { audioContext, loadSampleToWorklet } = useAudioStore.getState();
     if (!audioContext) return;
 
@@ -280,10 +280,10 @@ export const usePadStore = create<PadState>((set, get) => ({
       const resp = await fetch(url);
       const originalArrayBuffer = await resp.arrayBuffer();
       const audioBuffer = await audioContext.decodeAudioData(originalArrayBuffer.slice(0));
-      const sampleId = `${currentBank}-${index}-${Date.now()}`;
+      const sampleId = `${currentChannel}-${index}-${Date.now()}`;
       const waveform = generateWaveform(audioBuffer);
       loadSampleToWorklet(sampleId, audioBuffer);
-      const id = `${currentBank}-${index}`;
+      const id = `${currentChannel}-${index}`;
 
       const updatedPad: Pad = {
         ...pads[id],
@@ -306,10 +306,11 @@ export const usePadStore = create<PadState>((set, get) => ({
     }
   },
 
-  triggerPad: (index, velocity = 1.0, pitchOverrideMultiplier = 1.0, startTime?: number) => {
-    const { pads, currentBank } = get();
+  triggerPad: (index, velocity = 1.0, pitchOverrideMultiplier = 1.0, startTime?: number, channelId?: ChannelId) => {
+    const { pads, currentChannel } = get();
     const { triggerPad, audioContext } = useAudioStore.getState();
-    const id = `${currentBank}-${index}`;
+    const targetChannel = channelId || currentChannel;
+    const id = `${targetChannel}-${index}`;
     const pad = pads[id];
 
     if (pad && pad.sampleId && pad.buffer && audioContext) {
@@ -353,8 +354,8 @@ export const usePadStore = create<PadState>((set, get) => ({
   },
 
   stopPad: (index) => {
-    const { pads, currentBank } = get();
-    const id = `${currentBank}-${index}`;
+    const { pads, currentChannel } = get();
+    const id = `${currentChannel}-${index}`;
     const pad = pads[id];
     if (pad) {
       set(state => ({

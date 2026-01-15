@@ -10,11 +10,11 @@ interface WaveformEditorProps {
 }
 
 export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMode = false }) => {
-  const { currentBank, selectedPadId, pads, updatePad } = usePadStore();
+  const { currentChannel, selectedPadId, pads, updatePad } = usePadStore();
   const { audioContext, micAnalyser, isRecording } = useAudioStore();
   const selectedPadIndex = parseInt(selectedPadId.split('-')[1]);
-  const activePad = pads[`${currentBank}-${selectedPadIndex}`];
-  
+  const activePad = pads[`${currentChannel}-${selectedPadIndex}`];
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const lastXRef = useRef<number>(0);
@@ -22,7 +22,7 @@ export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMod
   const animationRef = useRef<number>(0);
   const lastClickTimeRef = useRef<number>(0);
   const doubleTapStartXRef = useRef<number | null>(null);
-  
+
   const [localView, setLocalView] = useState({ start: 0, end: 1 });
   const [rulerMode, setRulerMode] = useState<'TIME' | 'SAMPLES'>('TIME');
   const [selectionMode, setSelectionMode] = useState(false);
@@ -89,36 +89,36 @@ export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMod
 
     // Live Monitoring for UltraSample Mode
     if (isUltraSampleMode && micAnalyser) {
-        const bufferLength = micAnalyser.frequencyBinCount;
-        const dataArray = new Uint8Array(bufferLength);
-        micAnalyser.getByteTimeDomainData(dataArray);
+      const bufferLength = micAnalyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      micAnalyser.getByteTimeDomainData(dataArray);
 
-        ctx.strokeStyle = '#2d2d30';
-        ctx.beginPath(); ctx.moveTo(0, height / 2); ctx.lineTo(width, height / 2); ctx.stroke();
+      ctx.strokeStyle = '#2d2d30';
+      ctx.beginPath(); ctx.moveTo(0, height / 2); ctx.lineTo(width, height / 2); ctx.stroke();
 
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = isRecording ? '#ff1e56' : '#00f3ff';
-        ctx.beginPath();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = isRecording ? '#ff1e56' : '#00f3ff';
+      ctx.beginPath();
 
-        const sliceWidth = width / bufferLength;
-        let x = 0;
+      const sliceWidth = width / bufferLength;
+      let x = 0;
 
-        for (let i = 0; i < bufferLength; i++) {
-            const v = (dataArray[i] - 128) / 128.0;
-            const y = (height / 2) - (v * height / 2);
+      for (let i = 0; i < bufferLength; i++) {
+        const v = (dataArray[i] - 128) / 128.0;
+        const y = (height / 2) - (v * height / 2);
 
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-            x += sliceWidth;
-        }
-        ctx.lineTo(width, height / 2);
-        ctx.stroke();
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+        x += sliceWidth;
+      }
+      ctx.lineTo(width, height / 2);
+      ctx.stroke();
 
-        // Overlay Text
-        ctx.fillStyle = isRecording ? '#ff1e56' : '#00f3ff';
-        ctx.font = 'bold 12px "Inter", sans-serif';
-        ctx.fillText(isRecording ? "RECORDING..." : "LIVE INPUT", 10, 20);
-        return;
+      // Overlay Text
+      ctx.fillStyle = isRecording ? '#ff1e56' : '#00f3ff';
+      ctx.font = 'bold 12px "Inter", sans-serif';
+      ctx.fillText(isRecording ? "RECORDING..." : "LIVE INPUT", 10, 20);
+      return;
     }
 
     // Normal Waveform Editor Rendering
@@ -157,23 +157,23 @@ export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMod
     ctx.translate(0, RULER_HEIGHT);
     ctx.fillStyle = '#0a0a0c';
     ctx.fillRect(0, 0, width, waveformHeight);
-    
+
     // Grid
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
     ctx.lineWidth = 1;
     for (let i = 0; i <= 20; i++) {
-        const x = (i / 20) * width;
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, waveformHeight); ctx.stroke();
+      const x = (i / 20) * width;
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, waveformHeight); ctx.stroke();
     }
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
     ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(0, waveformHeight / 2); ctx.lineTo(width, waveformHeight / 2); ctx.stroke();
-    
+
     // Waveform
     ctx.beginPath();
     ctx.strokeStyle = '#ff3c6a';
     ctx.lineWidth = 1.5;
-    
+
     if (buffer) {
       const data = buffer.getChannelData(0);
       const startIdx = Math.floor(viewStart * data.length);
@@ -223,41 +223,41 @@ export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMod
     }
 
     const drawMarker = (pos: number, color: string, label: string, isEnd: boolean = false) => {
-        if (pos < viewStart && pos + (isEnd ? 0 : (HANDLE_WIDTH/width)*range) < viewStart) return;
-        if (pos > viewEnd && pos - (isEnd ? (HANDLE_WIDTH/width)*range : 0) > viewEnd) return;
-        
-        const x = ((pos - viewStart) / range) * width;
-        
-        // Marker Line
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, waveformHeight); ctx.stroke();
-        
-        // Handle Tab
-        ctx.fillStyle = color;
-        const handleY = isEnd ? waveformHeight - HANDLE_HEIGHT - 5 : 5;
-        const handleX = isEnd ? x - HANDLE_WIDTH : x;
-        
-        // Draw tab background
-        ctx.beginPath();
-        if (isEnd) {
-          // Rounded handle on the left for END
-          ctx.roundRect(handleX, handleY, HANDLE_WIDTH, HANDLE_HEIGHT, [8, 0, 0, 8]);
-        } else {
-          // Rounded handle on the right for START
-          ctx.roundRect(handleX, handleY, HANDLE_WIDTH, HANDLE_HEIGHT, [0, 8, 8, 0]);
-        }
-        ctx.fill();
+      if (pos < viewStart && pos + (isEnd ? 0 : (HANDLE_WIDTH / width) * range) < viewStart) return;
+      if (pos > viewEnd && pos - (isEnd ? (HANDLE_WIDTH / width) * range : 0) > viewEnd) return;
 
-        // Label on handle
-        ctx.fillStyle = '#000';
-        ctx.font = 'bold 10px "Inter", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.save();
-        ctx.translate(handleX + HANDLE_WIDTH/2, handleY + HANDLE_HEIGHT/2);
-        ctx.rotate(Math.PI / 2);
-        ctx.fillText(label, 0, 3);
-        ctx.restore();
+      const x = ((pos - viewStart) / range) * width;
+
+      // Marker Line
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, waveformHeight); ctx.stroke();
+
+      // Handle Tab
+      ctx.fillStyle = color;
+      const handleY = isEnd ? waveformHeight - HANDLE_HEIGHT - 5 : 5;
+      const handleX = isEnd ? x - HANDLE_WIDTH : x;
+
+      // Draw tab background
+      ctx.beginPath();
+      if (isEnd) {
+        // Rounded handle on the left for END
+        ctx.roundRect(handleX, handleY, HANDLE_WIDTH, HANDLE_HEIGHT, [8, 0, 0, 8]);
+      } else {
+        // Rounded handle on the right for START
+        ctx.roundRect(handleX, handleY, HANDLE_WIDTH, HANDLE_HEIGHT, [0, 8, 8, 0]);
+      }
+      ctx.fill();
+
+      // Label on handle
+      ctx.fillStyle = '#000';
+      ctx.font = 'bold 10px "Inter", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.save();
+      ctx.translate(handleX + HANDLE_WIDTH / 2, handleY + HANDLE_HEIGHT / 2);
+      ctx.rotate(Math.PI / 2);
+      ctx.fillText(label, 0, 3);
+      ctx.restore();
     };
 
     drawMarker(activePad.start, '#00ffcc', 'START');
@@ -273,11 +273,11 @@ export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMod
       } else if (activePad.triggerMode === 'LOOP') {
         shouldDraw = activePad.isHeld && elapsed >= 0;
       }
-      
+
       if (shouldDraw) {
         let progress = elapsed / activePad.lastTriggerDuration;
         if (activePad.triggerMode === 'LOOP') progress = progress % 1;
-        
+
         const currentPosNormalized = activePad.start + (activePad.end - activePad.start) * progress;
         if (currentPosNormalized >= viewStart && currentPosNormalized <= viewEnd) {
           const x = ((currentPosNormalized - viewStart) / range) * width;
@@ -310,7 +310,7 @@ export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMod
     lastYRef.current = clientY;
     const range = localView.end - localView.start;
     const normalizedX = localView.start + (x / rect.width) * range;
-    
+
     if (isDoubleTap) {
       updatePad(selectedPadIndex, { start: localView.start, end: localView.end });
       setDragTarget('doubleTapCrop');
@@ -357,30 +357,30 @@ export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMod
     } else if (dragTarget === 'selection' && tempSelection) {
       setTempSelection({ ...tempSelection, end: normalizedX });
     } else if (dragTarget === 'start') {
-        updatePad(selectedPadIndex, { start: Math.min(normalizedX, activePad.end - 0.001) });
+      updatePad(selectedPadIndex, { start: Math.min(normalizedX, activePad.end - 0.001) });
     } else if (dragTarget === 'end') {
-        updatePad(selectedPadIndex, { end: Math.max(normalizedX, activePad.start + 0.001) });
+      updatePad(selectedPadIndex, { end: Math.max(normalizedX, activePad.start + 0.001) });
     } else if (dragTarget === 'scroll' || dragTarget === 'ruler') {
-        const normalizedDeltaX = (deltaX / width) * range;
-        if (dragTarget === 'scroll') {
-          const zoomFactor = 1 + (deltaY * 0.01);
-          const center = (localView.start + localView.end) / 2;
-          const newRange = range * zoomFactor;
-          if (newRange > 0.0001 && newRange <= 1) {
-             const halfNewRange = newRange / 2;
-             let newStart = center - halfNewRange - normalizedDeltaX;
-             let newEnd = center + halfNewRange - normalizedDeltaX;
-             if (newStart < 0) { newStart = 0; newEnd = newRange; }
-             if (newEnd > 1) { newEnd = 1; newStart = 1 - newRange; }
-             setLocalView({ start: Math.max(0, Math.min(1 - 0.0001, newStart)), end: Math.max(newStart + 0.0001, Math.min(1, newEnd)) });
-             return;
-          }
+      const normalizedDeltaX = (deltaX / width) * range;
+      if (dragTarget === 'scroll') {
+        const zoomFactor = 1 + (deltaY * 0.01);
+        const center = (localView.start + localView.end) / 2;
+        const newRange = range * zoomFactor;
+        if (newRange > 0.0001 && newRange <= 1) {
+          const halfNewRange = newRange / 2;
+          let newStart = center - halfNewRange - normalizedDeltaX;
+          let newEnd = center + halfNewRange - normalizedDeltaX;
+          if (newStart < 0) { newStart = 0; newEnd = newRange; }
+          if (newEnd > 1) { newEnd = 1; newStart = 1 - newRange; }
+          setLocalView({ start: Math.max(0, Math.min(1 - 0.0001, newStart)), end: Math.max(newStart + 0.0001, Math.min(1, newEnd)) });
+          return;
         }
-        let nextStart = localView.start - normalizedDeltaX;
-        let nextEnd = localView.end - normalizedDeltaX;
-        if (nextStart < 0) { nextStart = 0; nextEnd = range; }
-        if (nextEnd > 1) { nextEnd = 1; nextStart = 1 - range; }
-        setLocalView({ start: Math.max(0, Math.min(1 - 0.0001, nextStart)), end: Math.max(nextStart + 0.0001, Math.min(1, nextEnd)) });
+      }
+      let nextStart = localView.start - normalizedDeltaX;
+      let nextEnd = localView.end - normalizedDeltaX;
+      if (nextStart < 0) { nextStart = 0; nextEnd = range; }
+      if (nextEnd > 1) { nextEnd = 1; nextStart = 1 - range; }
+      setLocalView({ start: Math.max(0, Math.min(1 - 0.0001, nextStart)), end: Math.max(nextStart + 0.0001, Math.min(1, nextEnd)) });
     }
   };
 
@@ -403,7 +403,7 @@ export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMod
     const range = localView.end - localView.start;
     const center = (localView.start + localView.end) / 2;
     const newRange = range * 0.5;
-    if (newRange < 0.0001) return; 
+    if (newRange < 0.0001) return;
     const nextView = { start: Math.max(0, center - newRange / 2), end: Math.min(1, center + newRange / 2) };
     setLocalView(nextView); updatePad(selectedPadIndex, { viewStart: nextView.start, viewEnd: nextView.end });
   };
@@ -415,7 +415,7 @@ export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMod
     const newRange = Math.min(1, range * 2);
     let newStart = center - newRange / 2;
     let newEnd = center + newRange / 2;
-    if (newStart < 0) { newStart = 0; newEnd = newRange; } 
+    if (newStart < 0) { newStart = 0; newEnd = newRange; }
     else if (newEnd > 1) { newEnd = 1; newStart = 1 - newRange; }
     const nextView = { start: newStart, end: newEnd };
     setLocalView(nextView); updatePad(selectedPadIndex, { viewStart: nextView.start, viewEnd: nextView.end });
@@ -445,55 +445,55 @@ export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMod
       <div id="waveform-toolbar" className="h-7 border-b border-zinc-800 flex items-center justify-between px-1 bg-[#1a1a1c] flex-none">
         <div id="waveform-tools-left" className="flex items-stretch h-full overflow-x-auto no-scrollbar">
           {!isUltraSampleMode && (
-          <>
-            <button id="btn-zoom-in" onClick={zoomIn} className="px-2 text-zinc-400 hover:text-white transition-colors" title="Zoom In"><ZoomIn size={12}/></button>
-            <button id="btn-zoom-out" onClick={zoomOut} className="px-2 text-zinc-400 hover:text-white transition-colors border-r border-zinc-800" title="Zoom Out"><ZoomOut size={12}/></button>
-            
-            <div id="trigger-mode-selectors" className="flex items-stretch border-r border-zinc-800 bg-black/20">
-              <button 
-                id="mode-gate"
-                onClick={() => setTriggerMode('GATE')} 
-                className={`px-2 flex items-center gap-1 text-[7px] font-bold uppercase transition-colors ${activePad?.triggerMode === 'GATE' ? 'text-retro-accent bg-retro-accent/10' : 'text-zinc-500 hover:text-zinc-300'}`}
-                title="Gate Mode"
-              >
-                <Hand size={10} /> Gate
-              </button>
-              <button 
-                id="mode-oneshot"
-                onClick={() => setTriggerMode('ONE_SHOT')} 
-                className={`px-2 flex items-center gap-1 text-[7px] font-bold uppercase transition-colors border-l border-zinc-800/50 ${activePad?.triggerMode === 'ONE_SHOT' ? 'text-retro-accent bg-retro-accent/10' : 'text-zinc-500 hover:text-zinc-300'}`}
-                title="One-shot Mode"
-              >
-                <PlayCircle size={10} /> One-shot
-              </button>
-              <button 
-                id="mode-loop"
-                onClick={() => setTriggerMode('LOOP')} 
-                className={`px-2 flex items-center gap-1 text-[7px] font-bold uppercase transition-colors border-l border-zinc-800/50 ${activePad?.triggerMode === 'LOOP' ? 'text-retro-accent bg-retro-accent/10' : 'text-zinc-500 hover:text-zinc-300'}`}
-                title="Loop Mode"
-              >
-                <Repeat size={10} /> Loop
-              </button>
-            </div>
+            <>
+              <button id="btn-zoom-in" onClick={zoomIn} className="px-2 text-zinc-400 hover:text-white transition-colors" title="Zoom In"><ZoomIn size={12} /></button>
+              <button id="btn-zoom-out" onClick={zoomOut} className="px-2 text-zinc-400 hover:text-white transition-colors border-r border-zinc-800" title="Zoom Out"><ZoomOut size={12} /></button>
 
-            <button id="btn-select-range" onClick={() => setSelectionMode(!selectionMode)} className={`px-2 flex items-center gap-1 text-[8px] font-bold uppercase transition-colors ${selectionMode ? 'bg-retro-accent text-white' : 'text-zinc-400 hover:text-white'}`}><MousePointer2 size={10} /><span className="hidden xs:inline">Select Range</span></button>
-          </>
+              <div id="trigger-mode-selectors" className="flex items-stretch border-r border-zinc-800 bg-black/20">
+                <button
+                  id="mode-gate"
+                  onClick={() => setTriggerMode('GATE')}
+                  className={`px-2 flex items-center gap-1 text-[7px] font-bold uppercase transition-colors ${activePad?.triggerMode === 'GATE' ? 'text-retro-accent bg-retro-accent/10' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  title="Gate Mode"
+                >
+                  <Hand size={10} /> Gate
+                </button>
+                <button
+                  id="mode-oneshot"
+                  onClick={() => setTriggerMode('ONE_SHOT')}
+                  className={`px-2 flex items-center gap-1 text-[7px] font-bold uppercase transition-colors border-l border-zinc-800/50 ${activePad?.triggerMode === 'ONE_SHOT' ? 'text-retro-accent bg-retro-accent/10' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  title="One-shot Mode"
+                >
+                  <PlayCircle size={10} /> One-shot
+                </button>
+                <button
+                  id="mode-loop"
+                  onClick={() => setTriggerMode('LOOP')}
+                  className={`px-2 flex items-center gap-1 text-[7px] font-bold uppercase transition-colors border-l border-zinc-800/50 ${activePad?.triggerMode === 'LOOP' ? 'text-retro-accent bg-retro-accent/10' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  title="Loop Mode"
+                >
+                  <Repeat size={10} /> Loop
+                </button>
+              </div>
+
+              <button id="btn-select-range" onClick={() => setSelectionMode(!selectionMode)} className={`px-2 flex items-center gap-1 text-[8px] font-bold uppercase transition-colors ${selectionMode ? 'bg-retro-accent text-white' : 'text-zinc-400 hover:text-white'}`}><MousePointer2 size={10} /><span className="hidden xs:inline">Select Range</span></button>
+            </>
           )}
           {isUltraSampleMode && (
             <span className="px-2 flex items-center text-[10px] text-retro-accent font-black uppercase tracking-wider animate-pulse">
-                Microphone Active
+              Microphone Active
             </span>
           )}
         </div>
         <div id="waveform-tools-right" className="flex items-stretch h-full">
-            <button id="btn-toggle-ruler" onClick={() => setRulerMode(rulerMode === 'TIME' ? 'SAMPLES' : 'TIME')} className="px-2 border-l border-zinc-800 hover:text-white transition-colors flex items-center gap-1 text-[8px] font-bold uppercase text-zinc-400">
-                {rulerMode === 'TIME' ? <Clock size={10}/> : <Hash size={10}/>}
-                <span className="hidden sm:inline">{rulerMode}</span>
-            </button>
-            {!isUltraSampleMode && <button id="btn-autocrop" onClick={autoCrop} className="px-2 border-l border-zinc-800 text-retro-accent hover:text-white transition-colors" title="Auto Crop"><Scissors size={12}/></button>}
+          <button id="btn-toggle-ruler" onClick={() => setRulerMode(rulerMode === 'TIME' ? 'SAMPLES' : 'TIME')} className="px-2 border-l border-zinc-800 hover:text-white transition-colors flex items-center gap-1 text-[8px] font-bold uppercase text-zinc-400">
+            {rulerMode === 'TIME' ? <Clock size={10} /> : <Hash size={10} />}
+            <span className="hidden sm:inline">{rulerMode}</span>
+          </button>
+          {!isUltraSampleMode && <button id="btn-autocrop" onClick={autoCrop} className="px-2 border-l border-zinc-800 text-retro-accent hover:text-white transition-colors" title="Auto Crop"><Scissors size={12} /></button>}
         </div>
       </div>
-      <div 
+      <div
         id="waveform-canvas-container"
         ref={containerRef}
         className={`px-4 flex-1 relative group overflow-hidden bg-black touch-none min-h-0 ${!isUltraSampleMode && selectionMode ? 'cursor-crosshair' : dragTarget === 'ruler' ? 'cursor-col-resize' : dragTarget === 'doubleTapCrop' ? 'cursor-crosshair' : dragTarget === 'scroll' ? 'cursor-grabbing' : 'cursor-grab'}`}

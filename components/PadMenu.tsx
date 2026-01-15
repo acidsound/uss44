@@ -10,8 +10,8 @@ interface PadMenuProps {
 }
 
 export const PadMenu: React.FC<PadMenuProps> = ({ padIndex, isOpen, onClose, anchorRect }) => {
-    const { pads, currentBank, toggleMute, toggleSolo, clearPad } = usePadStore();
-    const pad = pads[`${currentBank}-${padIndex}`];
+    const { pads, currentChannel, toggleMute, toggleSolo, clearPad } = usePadStore();
+    const pad = pads[`${currentChannel}-${padIndex}`];
     const menuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {

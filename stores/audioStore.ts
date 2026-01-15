@@ -11,6 +11,7 @@ interface AudioState {
   micStream: MediaStream | null;
   micSource: MediaStreamAudioSourceNode | null;
   micAnalyser: AnalyserNode | null;
+  masterAnalyser: AnalyserNode | null;
   recorderNode: AudioWorkletNode | null;
   isRecording: boolean;
   recordedChunks: Float32Array[];
@@ -42,6 +43,7 @@ export const useAudioStore = create<AudioState>((set, get) => ({
   micStream: null,
   micSource: null,
   micAnalyser: null,
+  masterAnalyser: null,
   recorderNode: null,
   isRecording: false,
   recordedChunks: [],
@@ -83,12 +85,18 @@ export const useAudioStore = create<AudioState>((set, get) => ({
         outputChannelCount: [2]
       });
 
+      // Master Analyser for UI visualization
+      const masterAnalyser = ctx.createAnalyser();
+      masterAnalyser.fftSize = 512;
+      masterAnalyser.smoothingTimeConstant = 0.8;
+
       // Master Compressor to prevent clipping
       const compressor = ctx.createDynamicsCompressor();
       node.connect(compressor);
-      compressor.connect(ctx.destination);
+      compressor.connect(masterAnalyser);
+      masterAnalyser.connect(ctx.destination);
 
-      set({ audioContext: ctx, workletNode: node, initialized: true, isInitializing: false });
+      set({ audioContext: ctx, workletNode: node, masterAnalyser, initialized: true, isInitializing: false });
 
     } catch (e) {
       console.error('Failed to initialize Audio Engine:', e);

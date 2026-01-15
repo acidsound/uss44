@@ -8,7 +8,7 @@ Welcome to the **USS44 Social Sampler**! This manual will guide you through the 
 
 ### 1. Header (LCD & Status)
 - **Logo (USS44)**: Click/Tap to toggle **UltraSample Mode**.
-- **LCD Display**: Shows the current BPM, selected BANK, and active PAD.
+- **LCD Display**: Shows the current BPM, selected CHANNEL, and active PAD.
 - **Visualizer**: Real-time spectral analysis of the master output.
 - **Menu (Hamburger)**: Access Project Management (Save, Load, Export, Import) and Global Settings.
 

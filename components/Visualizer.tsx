@@ -3,22 +3,22 @@ import { useAudioStore } from '../stores/audioStore';
 
 export const Visualizer: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const micAnalyser = useAudioStore((state) => state.micAnalyser);
+  const masterAnalyser = useAudioStore((state) => state.masterAnalyser);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !micAnalyser) return;
+    if (!canvas || !masterAnalyser) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const bufferLength = micAnalyser.frequencyBinCount;
+    const bufferLength = masterAnalyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
 
     let animationId: number;
     const draw = () => {
       animationId = requestAnimationFrame(draw);
-      micAnalyser.getByteFrequencyData(dataArray);
+      masterAnalyser.getByteFrequencyData(dataArray);
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -36,7 +36,7 @@ export const Visualizer: React.FC = () => {
 
     draw();
     return () => cancelAnimationFrame(animationId);
-  }, [micAnalyser]);
+  }, [masterAnalyser]);
 
   return (
     <canvas

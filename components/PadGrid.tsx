@@ -27,12 +27,12 @@ export const PadGrid: React.FC<PadGridProps> = ({
   onUltraRecordStart,
   onUltraRecordStop
 }) => {
-  const { pads, currentBank, selectedPadId, selectPad, triggerPad, stopPad } = usePadStore();
+  const { pads, currentChannel, selectedPadId, selectPad, triggerPad, stopPad } = usePadStore();
   const { currentStep, isPlaying, patterns, toggleStep, setSelectedStepIndex, selectedStepIndex } = useSequencerStore();
 
   const isSequenceMode = appMode === AppMode.SEQUENCE;
   const selectedPadIndex = parseInt(selectedPadId.split('-')[1]);
-  const activePattern = patterns[`${currentBank}-${selectedPadIndex}`];
+  const activePattern = patterns[`${currentChannel}-${selectedPadIndex}`];
 
   // Map to track multiple touches/pointer interactions independently
   const activeInteractionsRef = useRef<InteractionMap>(new Map());
@@ -53,7 +53,7 @@ export const PadGrid: React.FC<PadGridProps> = ({
       if (isEditMode) {
         setSelectedStepIndex(idx);
       } else {
-        toggleStep(currentBank, selectedPadIndex, idx);
+        toggleStep(currentChannel, selectedPadIndex, idx);
         setSelectedStepIndex(idx);
       }
     } else if (isEditMode) {
@@ -166,7 +166,7 @@ export const PadGrid: React.FC<PadGridProps> = ({
       container.removeEventListener('touchend', onTouchEnd);
       container.removeEventListener('touchcancel', onTouchEnd);
     };
-  }, [currentBank, selectedPadIndex, appMode, isEditMode, isSequenceMode, isUltraSampleMode, onUltraRecordStart, onUltraRecordStop]);
+  }, [currentChannel, selectedPadIndex, appMode, isEditMode, isSequenceMode, isUltraSampleMode, onUltraRecordStart, onUltraRecordStop]);
 
   return (
     <div
@@ -175,10 +175,10 @@ export const PadGrid: React.FC<PadGridProps> = ({
       className="grid grid-cols-4 grid-rows-4 gap-2 w-full h-full touch-none"
     >
       {Array.from({ length: 16 }).map((_, idx) => {
-        const pad = pads[`${currentBank}-${idx}`];
+        const pad = pads[`${currentChannel}-${idx}`];
 
         // Sequence Mode: Grid represents 16 Steps for the SELECTED pad
-        // Perform Mode: Grid represents 16 Pads for the SELECTED bank
+        // Perform Mode: Grid represents 16 Pads for the SELECTED channel
 
         const stepData = activePattern ? activePattern[idx] : null;
 
@@ -186,7 +186,7 @@ export const PadGrid: React.FC<PadGridProps> = ({
         const isPlayhead = isSequenceMode && isPlaying && currentStep === idx;
 
         // Perform Mode: Playback visualization (Highlight the pad if it is playing right now)
-        const padPatternKey = `${currentBank}-${idx}`;
+        const padPatternKey = `${currentChannel}-${idx}`;
         const padSpecificPattern = patterns[padPatternKey];
         const isTriggeredBySeq = !isSequenceMode && isPlaying && padSpecificPattern?.[currentStep]?.active;
 
@@ -347,7 +347,7 @@ export const PadGrid: React.FC<PadGridProps> = ({
               <div className="absolute inset-0 bg-retro-accent/20 animate-pulse pointer-events-none"></div>
             )}
 
-            {/* Bank Color Indicator */}
+            {/* Channel Color Indicator */}
             {!isSequenceMode && hasSample && !isUltraSampleMode && (
               <div className={`absolute bottom-0 w-full h-1.5 ${pad.color.replace('bg-', 'bg-opacity-100 bg- shadow-[0_-2px_10px_rgba(0,0,0,0.5)] bg-')}`}></div>
             )}

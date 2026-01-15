@@ -14,10 +14,10 @@ interface ParametersPanelProps {
 export const ParametersPanel: React.FC<ParametersPanelProps> = ({ isLandscape, isUltraSampleMode = false }) => {
   const [editSubMode, setEditSubMode] = useState<'CHOP' | 'PARAMS'>('CHOP');
   const [showRenameModal, setShowRenameModal] = useState(false);
-  const { currentBank, selectedPadId, pads, updatePad } = usePadStore();
+  const { currentChannel, selectedPadId, pads, updatePad } = usePadStore();
 
   const selectedPadIndex = parseInt(selectedPadId.split('-')[1]);
-  const activePad = pads[`${currentBank}-${selectedPadIndex}`];
+  const activePad = pads[`${currentChannel}-${selectedPadIndex}`];
 
   const handleRenameSave = (newName: string) => {
     updatePad(selectedPadIndex, { sampleName: newName });

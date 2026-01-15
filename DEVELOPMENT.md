@@ -7,13 +7,16 @@ This document provides a comprehensive technical overview of the Social Sampler 
 ## 1. Project Overview
 Social Sampler is a web-based MPC-style sampler designed for real-time audio performance and creative sampling from social media sources.
 
-- **Core Features**: 4x4 Pad Grid (64 pads total), Social/YouTube extraction, Local video processing, 32-voice DSP engine, Step sequencer, Master effects, WAV export, and Mobile-first touch optimization.
+- **Core Features**: 4x4 Pad Grid (64 pads organized into 4 **Channels**), Social/YouTube extraction, Local video processing, 32-voice DSP engine, Step sequencer, Master effects, WAV export, and Mobile-first touch optimization.
 - **Tech Stack**: 
   - **Frontend**: Vite, React 19, TypeScript
   - **State Management**: Zustand
   - **Audio Engine**: Web Audio API (Custom AudioWorklet)
   - **Processing**: `ffmpeg.wasm` (Local video extraction)
   - **Storage**: IndexedDB (Audio data persistence)
+- **Terminology**:
+  - **Channel**: A performance group of 16 pads (A, B, C, D).
+  - **Bank**: A library category for grouping samples in the Dig Library.
 - **Philosophy**: Low-latency real-time processing, "Social Digging" workflow, and a premium, responsive UI.
 
 ---
@@ -32,7 +35,7 @@ src/
 │   └── youtubeExtractor.ts # YouTube URL extraction (via backend)
 ├── stores/         # Zustand state management
 │   ├── audioStore.ts      # AudioContext lifecycle, Worklet reference
-│   ├── padStore.ts        # 64 pads (4 banks × 16), configuration
+│   ├── padStore.ts        # 64 pads (4 channels × 16), configuration
 │   ├── sampleStore.ts     # In-memory sample library
 │   ├── patternStore.ts    # 8 patterns × 16 tracks × 16 steps
 │   ├── transportStore.ts  # BPM, playback state, sequencer mode
@@ -40,7 +43,7 @@ src/
 ├── types/          # TypeScript definitions
 │   ├── audio.ts           # PadConfig, Sample, ADSREnvelope
 │   ├── sequencer.ts       # Pattern, Step, TransportState
-│   └── ui.ts              # BankId, PAD_KEYBOARD_MAP
+│   └── ui.ts              # ChannelId, PAD_KEYBOARD_MAP
 ├── ui/components/  # Modular React components
 │   ├── Header.tsx         # Global LCD status, BPM, Mode
 │   ├── PadGrid.tsx        # 4×4 grid with touch/drag-drop support
@@ -111,15 +114,13 @@ Manages the `AudioContext` and `AudioWorkletNode`.
 - **Initialization**: `initialize()` must be called via user gesture (click/tap) due to browser autoplay policies.
 - **Sample Transfer**: `sendSampleToWorklet` extracts `Float32Array` channels from an `AudioBuffer` and posts them to the worklet thread.
 
-### `padStore.ts`
-Manages 64 pad configurations (4 banks × 16 pads).
-- **ID Pattern**: `pad-{bankIndex}-{padIndex}` (e.g., `pad-0-0` is Bank A, Pad 1).
+- **ID Pattern**: `${channelId}-${padIndex}` (e.g., `A-0` is Channel A, Pad 1).
 - **Properties**: `sampleId`, `volume`, `pitch`, `filterCutoff`, `filterResonance`, `startPoint`, `endPoint`.
-- **Immutability**: Always clone the `pads` Map (`new Map(state.pads)`) when performing updates to ensure React re-renders.
+- **Immutability**: Always clone the `pads` object when performing updates to ensure React re-renders.
 
 ### `patternStore.ts`
 Manages 8 patterns for the sequencer.
-- Each pattern has 16 tracks (linked to the 16 pads of the current bank).
+- Each pattern has tracks (linked to the 16 pads of the current channel).
 - Steps include `active`, `velocity`, `probability`, and `noteLength`.
 
 ### `transportStore.ts`
@@ -164,12 +165,12 @@ const lookahead = 25;           // How often to check for new notes (ms)
 const scheduler = () => {
   while (nextNoteTime < audioContext.currentTime + scheduleAheadTime) {
     const pattern = getPattern();
-    const bankIdx = getBankIndex();
+    const channelIdx = getChannelIndex();
     
     pattern.tracks.forEach((track, trackIdx) => {
       const step = track.steps[currentStep];
       if (step.active && Math.random() < step.probability) {
-        const padId = `pad-${bankIdx}-${trackIdx}`;
+        const padId = `${channelIdx}-${trackIdx}`;
         playSampleWorklet(padId, step.velocity);
       }
     });
@@ -219,10 +220,10 @@ Located in `src/index.css`. Follow these for consistent aesthetics.
   --color-accent-red: #e85a5a;
   --color-accent-cyan: #00f3ff;
   
-  --color-bank-a: #ff5722;
-  --color-bank-b: #00d9ff;
-  --color-bank-c: #a855f7;
-  --color-bank-d: #00ff66;
+  --color-channel-a: #ff5722;
+  --color-channel-b: #00d9ff;
+  --color-channel-c: #a855f7;
+  --color-channel-d: #00ff66;
   
   --font-primary: 'Inter', system-ui;
   --font-mono: 'JetBrains Mono', monospace;

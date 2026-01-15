@@ -6,12 +6,12 @@ import { useSequencerStore } from '../stores/sequencerStore';
 import { Knob } from './Knob';
 
 export const SequencePanel: React.FC = () => {
-  const { currentBank, selectedPadId, pads } = usePadStore();
+  const { currentChannel, selectedPadId, pads } = usePadStore();
   const { patterns, selectedStepIndex, updateStepData } = useSequencerStore();
 
   const selectedPadIndex = parseInt(selectedPadId.split('-')[1]);
-  const activePad = pads[`${currentBank}-${selectedPadIndex}`];
-  const activePattern = patterns[`${currentBank}-${selectedPadIndex}`];
+  const activePad = pads[`${currentChannel}-${selectedPadIndex}`];
+  const activePattern = patterns[`${currentChannel}-${selectedPadIndex}`];
   const activeStepData = activePattern ? activePattern[selectedStepIndex] : null;
 
   return (
@@ -25,9 +25,9 @@ export const SequencePanel: React.FC = () => {
         </div>
       </div>
       <div id="sequence-controls" className="flex-1 grid grid-cols-3 gap-4 p-6 place-items-center bg-black/40">
-        <Knob label="Velocity" min={0} max={127} value={activeStepData?.velocity || 0} onChange={(v) => updateStepData(currentBank, selectedPadIndex, selectedStepIndex, { velocity: Math.round(v) })} />
-        <Knob label="Pitch" min={-24} max={24} value={activeStepData?.pitch || 0} onChange={(v) => updateStepData(currentBank, selectedPadIndex, selectedStepIndex, { pitch: Math.round(v) })} />
-        <Knob label="Length" min={0.1} max={4.0} value={activeStepData?.length || 1.0} onChange={(v) => updateStepData(currentBank, selectedPadIndex, selectedStepIndex, { length: v })} />
+        <Knob label="Velocity" min={0} max={127} value={activeStepData?.velocity || 0} onChange={(v) => updateStepData(currentChannel, selectedPadIndex, selectedStepIndex, { velocity: Math.round(v) })} />
+        <Knob label="Pitch" min={-24} max={24} value={activeStepData?.pitch || 0} onChange={(v) => updateStepData(currentChannel, selectedPadIndex, selectedStepIndex, { pitch: Math.round(v) })} />
+        <Knob label="Length" min={0.1} max={4.0} value={activeStepData?.length || 1.0} onChange={(v) => updateStepData(currentChannel, selectedPadIndex, selectedStepIndex, { length: v })} />
       </div>
     </div>
   );
