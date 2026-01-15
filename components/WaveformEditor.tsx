@@ -463,7 +463,7 @@ export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMod
                 <button
                   id="mode-gate"
                   onClick={() => setTriggerMode('GATE')}
-                  className={`px-2 flex items-center gap-1 text-[7px] font-bold uppercase transition-colors ${activePad?.triggerMode === 'GATE' ? 'text-retro-accent bg-retro-accent/10' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  className={`px-1 flex items-center gap-1 text-[7px] font-bold uppercase transition-colors ${activePad?.triggerMode === 'GATE' ? 'text-retro-accent bg-retro-accent/10' : 'text-zinc-500 hover:text-zinc-300'}`}
                   title="Gate Mode"
                 >
                   <Hand size={10} /> Gate
@@ -471,26 +471,26 @@ export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMod
                 <button
                   id="mode-oneshot"
                   onClick={() => setTriggerMode('ONE_SHOT')}
-                  className={`px-2 flex items-center gap-1 text-[7px] font-bold uppercase transition-colors border-l border-zinc-800/50 ${activePad?.triggerMode === 'ONE_SHOT' ? 'text-retro-accent bg-retro-accent/10' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  className={`px-1 flex items-center gap-1 text-[7px] font-bold uppercase transition-colors border-l border-zinc-800/50 ${activePad?.triggerMode === 'ONE_SHOT' ? 'text-retro-accent bg-retro-accent/10' : 'text-zinc-500 hover:text-zinc-300'}`}
                   title="One-shot Mode"
                 >
-                  <PlayCircle size={10} /> One-shot
+                  <PlayCircle size={10} /> Oneshot
                 </button>
                 <button
                   id="mode-loop"
                   onClick={() => setTriggerMode('LOOP')}
-                  className={`px-2 flex items-center gap-1 text-[7px] font-bold uppercase transition-colors border-l border-zinc-800/50 ${activePad?.triggerMode === 'LOOP' ? 'text-retro-accent bg-retro-accent/10' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  className={`px-1 flex items-center gap-1 text-[7px] font-bold uppercase transition-colors border-l border-zinc-800/50 ${activePad?.triggerMode === 'LOOP' ? 'text-retro-accent bg-retro-accent/10' : 'text-zinc-500 hover:text-zinc-300'}`}
                   title="Loop Mode"
                 >
                   <Repeat size={10} /> Loop
                 </button>
               </div>
 
-              <button id="btn-select-range" onClick={() => setSelectionMode(!selectionMode)} className={`px-2 flex items-center gap-1 text-[8px] font-bold uppercase transition-colors ${selectionMode ? 'bg-retro-accent text-white' : 'text-zinc-400 hover:text-white'}`}><MousePointer2 size={10} /><span className="hidden xs:inline">Select Range</span></button>
+              <button id="btn-select-range" onClick={() => setSelectionMode(!selectionMode)} className={`px-1 flex items-center gap-1 text-[8px] font-bold uppercase transition-colors ${selectionMode ? 'bg-retro-accent text-white' : 'text-zinc-400 hover:text-white'}`}><MousePointer2 size={10} /><span className="hidden xs:inline">Select Range</span></button>
             </>
           )}
           {isUltraSampleMode && (
-            <span className="px-2 flex items-center text-[10px] text-retro-accent font-black uppercase tracking-wider animate-pulse">
+            <span className="px-1 flex items-center text-[10px] text-retro-accent font-black uppercase tracking-wider animate-pulse">
               Microphone Active
             </span>
           )}
@@ -500,7 +500,7 @@ export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMod
             <div
               id="detected-bpm-display"
               onClick={() => setBpm(detectedBpm)}
-              className="px-2 flex items-center gap-1.5 border-l border-zinc-800 bg-retro-accent/5 animate-in fade-in slide-in-from-right-2 duration-500 cursor-pointer hover:bg-retro-accent/10 active:scale-95 transition-all group/bpm"
+              className="px-1 flex items-center gap-1 border-l border-zinc-800 bg-retro-accent/5 animate-in fade-in slide-in-from-right-2 duration-500 cursor-pointer hover:bg-retro-accent/10 active:scale-95 transition-all group/bpm"
               title="Click to sync project tempo"
             >
               <div className="w-1.5 h-1.5 rounded-full bg-retro-accent animate-pulse shadow-[0_0_8px_rgba(255,30,86,0.6)] group-hover/bpm:scale-125 transition-transform" />
