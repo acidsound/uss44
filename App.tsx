@@ -98,7 +98,7 @@ const App: React.FC = () => {
         }
       }
 
-      const padding = Math.floor(buffer.sampleRate * 0.01);
+      const padding = Math.floor(buffer.sampleRate * 0.03); // Increased to 30ms for safety
       startIdx = Math.max(0, startIdx - padding);
       endIdx = Math.min(data.length - 1, endIdx + padding);
 
@@ -270,7 +270,7 @@ const App: React.FC = () => {
   const scheduleNoteAtTime = (step: number, time: number) => {
     const patterns = useSequencerStore.getState().patterns;
     const patternKeys = Object.keys(patterns);
-    
+
     for (const trackKey of patternKeys) {
       const track = patterns[trackKey];
       if (track && track[step] && track[step].active) {

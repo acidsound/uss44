@@ -229,19 +229,20 @@ export const useAudioStore = create<AudioState>((set, get) => ({
         if (!chunk || chunk.length === 0) return;
 
         set((state) => {
-          // Maintain pre-roll buffer
-          const updatedPreRoll = [...state.preRollChunks, chunk];
-          if (updatedPreRoll.length > 25) {
-            updatedPreRoll.shift();
-          }
-
           if (state.isRecording) {
+            // During recording, we only add to recordedChunks.
+            // We stop updating preRollChunks to avoid mixing logic.
             return {
-              recordedChunks: [...state.recordedChunks, chunk],
-              preRollChunks: updatedPreRoll
+              recordedChunks: [...state.recordedChunks, chunk]
             };
+          } else {
+            // Maintain a rolling pre-roll buffer when NOT recording
+            const updatedPreRoll = [...state.preRollChunks, chunk];
+            if (updatedPreRoll.length > 25) {
+              updatedPreRoll.shift();
+            }
+            return { preRollChunks: updatedPreRoll };
           }
-          return { preRollChunks: updatedPreRoll };
         });
       };
 
@@ -280,6 +281,7 @@ export const useAudioStore = create<AudioState>((set, get) => ({
   },
 
   startRecording: () => {
+    // When we start recording, we keep the existing preRollChunks as our prefix.
     set({ isRecording: true, recordedChunks: [] });
   },
 
@@ -287,6 +289,7 @@ export const useAudioStore = create<AudioState>((set, get) => ({
     const { audioContext, recordedChunks, preRollChunks, isRecording } = get();
     set({ isRecording: false });
 
+    // Chronological order: Oldest Pre-roll -> Newest Pre-roll -> Recorded Chunks
     const allChunks = [...preRollChunks, ...recordedChunks];
 
     if (!audioContext || allChunks.length === 0) {
@@ -303,7 +306,8 @@ export const useAudioStore = create<AudioState>((set, get) => ({
       offset += chunk.length;
     }
 
-    set({ recordedChunks: [] });
+    // Reset both to prevent double-concatenation on next recording
+    set({ recordedChunks: [], preRollChunks: [] });
 
     return buffer;
   }

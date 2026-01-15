@@ -30,7 +30,7 @@ interface PadState {
 
 const DEFAULT_ENVELOPE: Envelope = { attack: 0.001, decay: 0.1, sustain: 1, release: 0.05 };
 
-const generateWaveform = (buffer: AudioBuffer, points: number = 200): number[] => {
+export const generateWaveform = (buffer: AudioBuffer, points: number = 200): number[] => {
   const data = buffer.getChannelData(0);
   const step = Math.ceil(data.length / points);
   const waveform: number[] = [];
@@ -136,7 +136,7 @@ export const usePadStore = create<PadState>((set, get) => ({
       await Promise.all(autoSamples.map((sample, i) => get().loadSample(i, sample.url, sample.name)));
     } else {
       const newPads = createBasePads();
-      
+
       const decodePromises = configs
         .filter(config => {
           const merged = { ...newPads[config.id], ...config };
@@ -166,15 +166,15 @@ export const usePadStore = create<PadState>((set, get) => ({
           }
           newPads[config.id] = mergedPad;
         });
-      
+
       await Promise.all(decodePromises);
-      
+
       configs.forEach(config => {
         if (newPads[config.id] && !newPads[config.id].buffer) {
           newPads[config.id] = { ...newPads[config.id], ...config };
         }
       });
-      
+
       set({ pads: newPads });
     }
 
@@ -291,6 +291,10 @@ export const usePadStore = create<PadState>((set, get) => ({
         sampleName: name,
         buffer: audioBuffer,
         waveform,
+        start: 0,
+        end: 1,
+        viewStart: 0,
+        viewEnd: 1,
         triggerMode: 'ONE_SHOT'
       };
 
