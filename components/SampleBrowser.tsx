@@ -67,7 +67,7 @@ const WaveformThumbnail: React.FC<{ buffer?: AudioBuffer; waveform?: number[]; c
     }
   }, [buffer, waveform, color]);
 
-  return <canvas className={`bg-black/40 rounded border border-white/5 ${className}`} />;
+  return <canvas ref={canvasRef} className={`bg-black/40 rounded border border-white/5 ${className}`} />;
 };
 
 const SampleItem: React.FC<{
@@ -138,9 +138,9 @@ const SampleItem: React.FC<{
         ) : (
           <Play size={16} className="text-zinc-500 group-hover:text-white transition-colors z-10" />
         )}
-        {meta.waveform && (
+        {(meta.waveform || buffer) && (
           <div className="absolute inset-0 opacity-20 group-hover:opacity-40 transition-opacity">
-            <WaveformThumbnail waveform={meta.waveform} className="w-full h-full" color="#ff1e56" />
+            <WaveformThumbnail waveform={meta.waveform} buffer={buffer || undefined} className="w-full h-full" color="#ff1e56" />
           </div>
         )}
       </div>
@@ -291,8 +291,8 @@ export const SampleBrowser: React.FC<SampleBrowserProps> = ({ onClose, isLandsca
       <input id="sample-file-input" type="file" ref={fileInputRef} onChange={handleFileUpload} accept="audio/*" className="hidden" />
 
       {/* Top Navbar */}
-      <div id="browser-navbar" className="h-14 border-b border-white/5 flex items-stretch bg-[#121214] flex-none">
-        <button id="browser-close-btn" onClick={onClose} className="w-14 flex items-center justify-center text-zinc-500 hover:text-white transition-colors border-r border-white/5">
+      <div id="browser-navbar" className="h-6 border-b border-white/5 flex items-stretch bg-[#121214] flex-none">
+        <button id="browser-close-btn" onClick={onClose} className="w-8 flex items-center justify-center text-zinc-500 hover:text-white transition-colors border-r border-white/5">
           <ChevronLeft size={20} />
         </button>
         <div id="browser-tabs" className="flex-1 flex items-stretch">
@@ -314,7 +314,7 @@ export const SampleBrowser: React.FC<SampleBrowserProps> = ({ onClose, isLandsca
       </div>
 
       <div id="browser-scroll-area" className="flex-1 overflow-y-auto no-scrollbar pb-10">
-        <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
+        <div className="max-w-2xl mx-auto px-2 py-2 space-y-2">
 
           {/* Search Bar */}
           <div id="browser-search-container" className="relative group">
@@ -325,13 +325,13 @@ export const SampleBrowser: React.FC<SampleBrowserProps> = ({ onClose, isLandsca
               placeholder={sampleTab === 'LIBRARY' ? "Search 1000+ Factory Samples..." : "URL or Search Social Media..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-zinc-900/50 border border-white/5 rounded-xl py-3.5 pl-12 pr-4 text-xs font-extrabold text-white focus:border-retro-accent focus:outline-none transition-all placeholder:text-zinc-700"
+              className="w-full bg-zinc-900/50 border border-white/5 rounded-xl py-2 pl-9 pr-4 text-xs font-extrabold text-white focus:border-retro-accent focus:outline-none transition-all placeholder:text-zinc-700"
             />
           </div>
 
           {/* Banks Row */}
           {sampleTab === 'LIBRARY' && (
-            <div id="library-banks-filter" className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+            <div id="library-banks-filter" className="flex items-center gap-2 overflow-x-auto no-scrollbar">
               <button
                 id="bank-filter-all"
                 onClick={() => setSelectedBank(null)}
