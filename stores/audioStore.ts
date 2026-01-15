@@ -24,7 +24,7 @@ interface AudioState {
   triggerPad: (data: any) => void;
   stopPad: (padId: string, startTime?: number) => void;
   updatePadStartEnd: (padId: string, start: number, end: number) => void;
-  updatePadParams: (padId: string, params: { cutoff?: number, resonance?: number, pitch?: number, volume?: number, pan?: number }) => void;
+  updatePadParams: (padId: string, params: { cutoff?: number, resonance?: number, pitch?: number, volume?: number, pan?: number, mute?: boolean }) => void;
   stopAll: () => void;
 
   // Recording Actions
@@ -170,7 +170,7 @@ export const useAudioStore = create<AudioState>((set, get) => ({
     }
   },
 
-  updatePadParams: (padId: string, params: { cutoff?: number, resonance?: number, pitch?: number, volume?: number, pan?: number }) => {
+  updatePadParams: (padId: string, params: { cutoff?: number, resonance?: number, pitch?: number, volume?: number, pan?: number, mute?: boolean }) => {
     const { workletNode } = get();
     if (workletNode) {
       workletNode.port.postMessage({

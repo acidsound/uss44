@@ -85,7 +85,7 @@ class VoiceProcessor extends AudioWorkletProcessor {
   }
 
   updateVoiceParams(data) {
-    const { padId, cutoff, resonance, pitch, volume, pan } = data;
+    const { padId, cutoff, resonance, pitch, volume, pan, mute } = data;
     for (const voice of this.voices) {
       if (voice.padId === padId && !voice.finished) {
         if (cutoff !== undefined) voice.cutoff = cutoff;
@@ -93,6 +93,7 @@ class VoiceProcessor extends AudioWorkletProcessor {
         if (pitch !== undefined) voice.speed = pitch;
         if (volume !== undefined) voice.volume = volume;
         if (pan !== undefined) voice.pan = pan;
+        if (mute !== undefined) voice.mute = mute;
       }
     }
   }
@@ -134,6 +135,7 @@ class VoiceProcessor extends AudioWorkletProcessor {
       volume,
       pan,
       triggerMode: triggerMode || 'ONE_SHOT',
+      mute: data.mute || false,
       envelope: {
         ...envelope,
         phase: 'attack',
@@ -299,8 +301,9 @@ class VoiceProcessor extends AudioWorkletProcessor {
         }
 
         const panRad = (voice.pan + 1) * (Math.PI / 4);
-        const gainL = Math.cos(panRad) * voice.volume * envLevel;
-        const gainR = Math.sin(panRad) * voice.volume * envLevel;
+        const voiceMuteGain = voice.mute ? 0 : 1;
+        const gainL = Math.cos(panRad) * voice.volume * envLevel * voiceMuteGain;
+        const gainR = Math.sin(panRad) * voice.volume * envLevel * voiceMuteGain;
 
         const outL = sL * gainL;
         const outR = sR * gainR;

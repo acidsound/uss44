@@ -22,6 +22,7 @@ interface PadState {
   stopPad: (index: number, startTime?: number, channelId?: ChannelId) => void;
   toggleMute: (index: number) => void;
   toggleSolo: (index: number) => void;
+  syncMuteStates: () => void;
   clearPad: (index: number) => void;
 
   // Sample Pack Management
@@ -209,6 +210,7 @@ export const usePadStore = create<PadState>((set, get) => ({
       set({ pads: newPads });
     }
 
+    get().syncMuteStates();
     set({ isHydrating: false });
   },
 
@@ -263,6 +265,22 @@ export const usePadStore = create<PadState>((set, get) => ({
         pan: updates.pan
       });
     }
+
+    if (updates.mute !== undefined || updates.solo !== undefined) {
+      get().syncMuteStates();
+    }
+  },
+
+  syncMuteStates: () => {
+    const { pads } = get();
+    const allPads = Object.values(pads);
+    const anySoloed = allPads.some(p => p.solo);
+
+    Object.keys(pads).forEach(id => {
+      const pad = pads[id];
+      const effectivelyMuted = pad.mute || (anySoloed && !pad.solo);
+      useAudioStore.getState().updatePadParams(id, { mute: effectivelyMuted });
+    });
   },
 
   toggleMute: (index) => {
@@ -271,8 +289,10 @@ export const usePadStore = create<PadState>((set, get) => ({
     const pad = pads[id];
     if (pad) {
       const updates = { mute: !pad.mute };
-      set(state => ({ pads: { ...state.pads, [id]: { ...pad, ...updates } } }));
+      const newPads = { ...pads, [id]: { ...pad, ...updates } };
+      set({ pads: newPads });
       dbService.savePadConfig(id, updates);
+      get().syncMuteStates();
     }
   },
 
@@ -282,8 +302,10 @@ export const usePadStore = create<PadState>((set, get) => ({
     const pad = pads[id];
     if (pad) {
       const updates = { solo: !pad.solo };
-      set(state => ({ pads: { ...state.pads, [id]: { ...pad, ...updates } } }));
+      const newPads = { ...pads, [id]: { ...pad, ...updates } };
+      set({ pads: newPads });
       dbService.savePadConfig(id, updates);
+      get().syncMuteStates();
     }
   },
 
@@ -299,6 +321,7 @@ export const usePadStore = create<PadState>((set, get) => ({
       }
       set(state => ({ pads: { ...state.pads, [id]: defaultPad } }));
       dbService.savePadConfig(id, defaultPad);
+      get().syncMuteStates();
     }
   },
 
@@ -367,6 +390,7 @@ export const usePadStore = create<PadState>((set, get) => ({
         triggerMode: pad.triggerMode,
         cutoff: pad.cutoff,
         resonance: pad.resonance,
+        mute: false, // Already checked above, shouldn't trigger if effectively muted
         startTime: startTime || audioContext.currentTime
       });
 
