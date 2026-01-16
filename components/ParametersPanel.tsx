@@ -40,7 +40,7 @@ export const ParametersPanel: React.FC<ParametersPanelProps> = ({ isLandscape, i
       <div id="parameters-header" className="h-6 border-b border-zinc-800/50 flex items-center px-4 justify-between bg-zinc-800/30 flex-none">
         <div className="flex items-stretch h-full gap-2">
           <div className="flex items-center gap-1 text-[11px] font-bold text-retro-accent uppercase tracking-tighter">
-            <Sliders size={14} /> {isUltraSampleMode ? 'Live Input Monitor' : 'Control'}
+            <Sliders size={14} /> {isUltraSampleMode ? 'Live Input Monitor' : 'Params'}
           </div>
           {!isLandscape && !isUltraSampleMode && (
             <div id="submode-toggles" className="flex items-stretch bg-black/20 rounded-t-lg overflow-hidden">

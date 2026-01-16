@@ -43,7 +43,7 @@ Welcome to the **USS44 Social Sampler**! This manual will guide you through the 
 
 ---
 
-## 🎛️ Parameters (The CONTROL Panel)
+## 🎛️ Parameters (The PARAMS Panel)
 
 When a pad is selected, you can manipulate its sound in real-time. Changes are applied instantly, even while the pad or sequencer is playing:
 
