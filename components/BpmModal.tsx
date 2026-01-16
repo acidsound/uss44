@@ -44,23 +44,21 @@ export const BpmModal: React.FC<BpmModalProps> = ({ onClose }) => {
       return;
     }
 
-    setTapTimes(prev => {
-      const newTimes = [...prev, now].slice(-8); // Keep last 8 taps
+    const newTimes = [...tapTimes, now].slice(-8);
+    setTapTimes(newTimes);
 
-      if (newTimes.length >= 2) {
-        const intervals = [];
-        for (let i = 1; i < newTimes.length; i++) {
-          intervals.push(newTimes[i] - newTimes[i - 1]);
-        }
-
-        const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
-        const newBpm = Math.round(60000 / avgInterval);
-        const clamped = Math.max(20, Math.min(300, newBpm));
-        setLocalBpm(clamped);
-        setBpm(clamped);
+    if (newTimes.length >= 2) {
+      const intervals = [];
+      for (let i = 1; i < newTimes.length; i++) {
+        intervals.push(newTimes[i] - newTimes[i - 1]);
       }
-      return newTimes;
-    });
+
+      const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+      const newBpm = Math.round(60000 / avgInterval);
+      const clamped = Math.max(20, Math.min(300, newBpm));
+      setLocalBpm(clamped);
+      setBpm(clamped);
+    }
 
     lastTapRef.current = now;
   };

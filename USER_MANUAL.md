@@ -70,9 +70,9 @@ When a pad is selected, you can manipulate its sound in real-time. Changes are a
 
 ## 🔊 Triggering & Playback
 
-### Monophonic Behavior
+### Monophonic Behavior (Choke Group)
 - For pads set to **GATE** or **LOOP** trigger modes, playback is strictly **monophonic**. 
-- Re-triggering a pad will immediately cut the previous sound with a smooth 5ms fade-out to prevent digital clicks, starting the new instance cleanly from the beginning.
+- Re-triggering a pad will immediately "choke" (fade-out) the previous sound with a smooth 5ms crossfade, starting the new instance cleanly from the beginning. This behavior is similar to **Choke Groups** on hardware drum machines.
 
 ---
 
@@ -106,7 +106,7 @@ When a pad is selected, you can manipulate its sound in real-time. Changes are a
 ### 1. Granular Export & Import
 Export your work at different levels of complexity:
 - **Sequence**: Small files containing only the 16-step patterns. Great for sharing rhythms.
-- **Sound Kit**: Contains the 16 pad settings AND all associated audio sample data. Perfect for sharing your "Sound" without the notes.
+- **Sound Kit**: Contains the 16 pad settings AND all associated audio sample data. Perfect for sharing your "Sound" without the sequence data.
 - **Project Song**: The full snapshot. Includes all sounds, samples, patterns, and BPM. This is the complete work.
 
 ### 2. File Operations
