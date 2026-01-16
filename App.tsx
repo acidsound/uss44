@@ -209,19 +209,29 @@ const App: React.FC = () => {
     };
   }, [initialized, initPads, initSequencer, initialize, resume]);
 
-  // iOS Audio Context Resume - Handle visibility change (background -> foreground)
+  // iOS Audio Context Resume - Show prompt when audio is suspended after background return
+  const [showAudioResumePrompt, setShowAudioResumePrompt] = useState(false);
+
   useEffect(() => {
-    const handleVisibilityChange = () => {
+    const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible' && initialized) {
-        // Resume audio context when returning from background (iOS Safari suspend workaround)
-        resume();
+        const { audioContext } = useAudioStore.getState();
+        if (audioContext && (audioContext.state === 'suspended' || audioContext.state === 'interrupted')) {
+          // Show prompt to user - iOS requires user gesture to resume
+          setShowAudioResumePrompt(true);
+        }
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [initialized, resume]);
+  }, [initialized]);
+
+  const handleAudioResume = async () => {
+    await resume();
+    setShowAudioResumePrompt(false);
+  };
 
   // UltraSample Mode Logic - Toggle
   const toggleUltraSampleMode = async () => {
@@ -472,6 +482,27 @@ const App: React.FC = () => {
           </div>
         </div>
       </main>
+
+      {/* iOS Audio Resume Prompt - Shown when AudioContext is suspended after background return */}
+      {showAudioResumePrompt && (
+        <div
+          className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-md flex flex-col items-center justify-center gap-6 animate-in fade-in duration-200"
+          onClick={handleAudioResume}
+        >
+          <div className="w-24 h-24 rounded-full bg-retro-accent/20 flex items-center justify-center animate-pulse">
+            <svg className="w-12 h-12 text-retro-accent" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
+            </svg>
+          </div>
+          <div className="text-center">
+            <h2 className="text-2xl font-extrabold text-white uppercase tracking-wider mb-2">Audio Paused</h2>
+            <p className="text-zinc-400 text-sm font-bold">Tap anywhere to resume</p>
+          </div>
+          <div className="mt-4 px-8 py-4 bg-retro-accent rounded-full">
+            <span className="text-white font-extrabold uppercase tracking-widest text-sm">TAP TO RESUME</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
