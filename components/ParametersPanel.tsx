@@ -12,7 +12,7 @@ interface ParametersPanelProps {
 }
 
 export const ParametersPanel: React.FC<ParametersPanelProps> = ({ isLandscape, isUltraSampleMode = false }) => {
-  const [editSubMode, setEditSubMode] = useState<'CHOP' | 'PARAMS'>('CHOP');
+  const [editSubMode, setEditSubMode] = useState<'CHOP' | 'CONTROL'>('CHOP');
   const [showRenameModal, setShowRenameModal] = useState(false);
   const { currentChannel, selectedPadId, pads, samples, updatePad, updateSampleName } = usePadStore();
 
@@ -40,7 +40,7 @@ export const ParametersPanel: React.FC<ParametersPanelProps> = ({ isLandscape, i
       <div id="parameters-header" className="h-6 border-b border-zinc-800/50 flex items-center px-4 justify-between bg-zinc-800/30 flex-none">
         <div className="flex items-stretch h-full gap-2">
           <div className="flex items-center gap-1 text-[11px] font-bold text-retro-accent uppercase tracking-tighter">
-            <Sliders size={14} /> {isUltraSampleMode ? 'Live Input Monitor' : 'Params'}
+            <Sliders size={14} /> {isUltraSampleMode ? 'Live Input Monitor' : 'Control'}
           </div>
           {!isLandscape && !isUltraSampleMode && (
             <div id="submode-toggles" className="flex items-stretch bg-black/20 rounded-t-lg overflow-hidden">
@@ -52,11 +52,11 @@ export const ParametersPanel: React.FC<ParametersPanelProps> = ({ isLandscape, i
                 <Scissors size={12} /> Chop
               </button>
               <button
-                id="toggle-params"
-                onClick={() => setEditSubMode('PARAMS')}
-                className={`w-16 flex items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-widest transition-all ${editSubMode === 'PARAMS' ? 'text-white bg-retro-accent/20 border-b-2 border-retro-accent' : 'text-zinc-500 hover:text-white'}`}
+                id="toggle-control"
+                onClick={() => setEditSubMode('CONTROL')}
+                className={`w-16 flex items-center justify-center gap-1 text-[10px] font-bold uppercase tracking-widest transition-all ${editSubMode === 'CONTROL' ? 'text-white bg-retro-accent/20 border-b-2 border-retro-accent' : 'text-zinc-500 hover:text-white'}`}
               >
-                <Settings2 size={12} /> Fx
+                <Settings2 size={12} /> CTRL
               </button>
             </div>
           )}

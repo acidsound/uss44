@@ -43,7 +43,7 @@ Welcome to the **USS44 Social Sampler**! This manual will guide you through the 
 
 ---
 
-## 🎛️ Parameters (The PARAMS Panel)
+## 🎛️ Parameters (The CONTROL Panel)
 
 When a pad is selected, you can manipulate its sound in real-time. Changes are applied instantly, even while the pad or sequencer is playing:
 
@@ -53,7 +53,7 @@ When a pad is selected, you can manipulate its sound in real-time. Changes are a
   - **BPM Loop Calculation**: In `LOOP` mode, the system automatically calculates the BPM between your Start and End markers.
   - **BPM SYNC**: Click the calculated BPM value to instantly sync the project's global tempo to that loop.
   - **Snap (Magnet Icon)**: Enable to automatically snap markers to the nearest **Zero-Crossing**, eliminating audible clicks at loop points.
-- **Fx Tab (Knobs)**:
+- **CTRL Tab (Knobs)**:
   - **Velocity**: Step intensity is visualized via border brightness (0-127).
   - **Pitch**: Change playback speed and tone (-24 to +24 semitones).
   - **Gain**: Adjust the volume level of the pad.
