@@ -209,6 +209,20 @@ const App: React.FC = () => {
     };
   }, [initialized, initPads, initSequencer, initialize, resume]);
 
+  // iOS Audio Context Resume - Handle visibility change (background -> foreground)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && initialized) {
+        // Resume audio context when returning from background (iOS Safari suspend workaround)
+        resume();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [initialized, resume]);
+
   // UltraSample Mode Logic - Toggle
   const toggleUltraSampleMode = async () => {
     if (isUltraSampleMode) {
