@@ -42,7 +42,7 @@ const App: React.FC = () => {
   const { initPads, currentChannel, setChannel, selectedPadId, selectPad, triggerPad, stopPad, updatePad, isHydrating } = usePadStore((state) => state);
   const { bpm, isPlaying, currentStep, setStep, togglePlay, toggleStep, setSelectedStepIndex, initSequencer } = useSequencerStore((state) => state);
 
-  const selectedPadIndex = parseInt(selectedPadId.split('-')[1]);
+  const selectedPadIndex = parseInt(selectedPadId.split('-').pop() || '0');
   const bpmRef = useRef(bpm);
 
   useEffect(() => {

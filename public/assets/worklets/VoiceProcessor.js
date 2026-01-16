@@ -104,7 +104,20 @@ class VoiceProcessor extends AudioWorkletProcessor {
 
     if (!buffer) return;
 
-    this.releaseVoice(padId);
+    // For GATE and LOOP modes, we enforce monophonic behavior per pad (Choke Group).
+    // If a pad is re-triggered, the existing voice must stop with a very fast fade (5ms)
+    // to avoid overlaps and digital clicks.
+    if (triggerMode === 'GATE' || triggerMode === 'LOOP') {
+      for (const voice of this.voices) {
+        if (voice.padId === padId && !voice.finished) {
+          voice.envelope.phase = 'release';
+          voice.envelope.releaseT = 0;
+          voice.envelope.release = 0.005; // 5ms forced release
+        }
+      }
+    } else {
+      this.releaseVoice(padId);
+    }
 
     if (this.voices.length >= 32) {
       const oldestVoice = this.voices[0];
@@ -252,7 +265,8 @@ class VoiceProcessor extends AudioWorkletProcessor {
         const bufferLen = voice.buffer[0].length;
         if (idx >= voice.endFrame || idx >= bufferLen - 1) {
           if (voice.triggerMode === 'LOOP' && voice.envelope.phase !== 'release') {
-            voice.position = voice.startFrame + (voice.position % (voice.endFrame - voice.startFrame || 1));
+            const loopLen = voice.endFrame - voice.startFrame || 1;
+            voice.position = voice.startFrame + ((voice.position - voice.startFrame) % loopLen);
             idx = Math.floor(voice.position);
           } else {
             voice.finished = true;

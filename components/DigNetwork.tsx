@@ -7,7 +7,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     Search, Play, Square, Loader2, AlertCircle,
     Youtube, Music2, Globe, Zap, Radio, ExternalLink,
-    Disc3, Scissors, Clock
+    Disc3, Scissors, Clock, X
 } from 'lucide-react';
 import { parseUrl, getPlatformColor, getPlatformName, SocialPlatform, ParsedUrl } from '../utils/urlParser';
 import { createDigPreview, DigPreviewItem } from '../services/oembedService';
@@ -71,6 +71,8 @@ export const DigNetwork: React.FC<DigNetworkProps> = ({ targetPadIndex, onClose 
     // Search results state
     const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
     const [isSearching, setIsSearching] = useState(false);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [searchLimit, setSearchLimit] = useState(15);
 
     // Time range state
     const [videoDuration, setVideoDuration] = useState<number>(0);
@@ -82,6 +84,13 @@ export const DigNetwork: React.FC<DigNetworkProps> = ({ targetPadIndex, onClose 
     const [showPlayer, setShowPlayer] = useState(false);
     const playerRef = useRef<HTMLIFrameElement>(null);
     const ytPlayerRef = useRef<any>(null);
+
+    // Live Capture state
+    const [isCaptureMode, setIsCaptureMode] = useState(false);
+    const [isRecording, setIsRecording] = useState(false);
+    const [recorder, setRecorder] = useState<MediaRecorder | null>(null);
+    const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
+    const [captureStream, setCaptureStream] = useState<MediaStream | null>(null);
 
     const { updatePad } = usePadStore();
     const { audioContext, loadSampleToWorklet } = useAudioStore();
@@ -101,12 +110,14 @@ export const DigNetwork: React.FC<DigNetworkProps> = ({ targetPadIndex, onClose 
             setError(null);
             setShowTimeRange(false);
             setSearchResults([]);
+            setSearchLimit(15);
             return;
         }
 
         const parsed = parseUrl(inputUrl);
         setParsedUrl(parsed);
         setShowPlayer(false);
+        setSearchLimit(15); // Reset limit on new input
 
         if (parsed.isValid && parsed.platform !== 'unknown') {
             setSearchResults([]);
@@ -128,10 +139,13 @@ export const DigNetwork: React.FC<DigNetworkProps> = ({ targetPadIndex, onClose 
         } else if (inputUrl.trim().length >= 3 && !parsed.isValid) {
             // Trigger search if not a valid URL and enough characters
             const timer = setTimeout(async () => {
-                setIsSearching(true);
-                const results = await searchVideos(inputUrl.trim());
+                if (searchLimit > 15) setIsLoadingMore(true);
+                else setIsSearching(true);
+
+                const results = await searchVideos(inputUrl.trim(), 'youtube', searchLimit);
                 setSearchResults(results);
                 setIsSearching(false);
+                setIsLoadingMore(false);
                 setPreview(null);
             }, 600);
             return () => clearTimeout(timer);
@@ -146,7 +160,7 @@ export const DigNetwork: React.FC<DigNetworkProps> = ({ targetPadIndex, onClose 
                 isLoading: false,
             });
         }
-    }, [inputUrl]);
+    }, [inputUrl, searchLimit]);
 
     // Handle URL paste
     const handlePaste = useCallback((e: React.ClipboardEvent) => {
@@ -155,8 +169,8 @@ export const DigNetwork: React.FC<DigNetworkProps> = ({ targetPadIndex, onClose 
         setInputUrl(pastedText.trim());
     }, []);
 
-    // Rutube current time (updated via postMessage)
-    const [rutubeCurrentTime, setRutubeCurrentTime] = useState<number>(0);
+    // External player current time (updated via postMessage)
+    const [externalPlayerTime, setExternalPlayerTime] = useState<number>(0);
 
     // Initialize YouTube Player API when player is shown
     useEffect(() => {
@@ -193,7 +207,7 @@ export const DigNetwork: React.FC<DigNetworkProps> = ({ targetPadIndex, onClose 
         };
     }, [showPlayer, preview?.embedUrl, preview?.platform]);
 
-    // Initialize Rutube postMessage listener
+    // Initialize External Player (Rutube) postMessage listener
     useEffect(() => {
         if (!showPlayer || !preview?.embedUrl || preview.platform !== 'rutube') return;
 
@@ -206,7 +220,7 @@ export const DigNetwork: React.FC<DigNetworkProps> = ({ targetPadIndex, onClose 
                 if (data.type === 'player:currentTime' || data.event === 'timeupdate' || data.data?.currentTime !== undefined) {
                     const time = data.data?.currentTime || data.currentTime || data.time;
                     if (typeof time === 'number') {
-                        setRutubeCurrentTime(Math.floor(time));
+                        setExternalPlayerTime(Math.floor(time));
                     }
                 }
             } catch (e) {
@@ -216,7 +230,6 @@ export const DigNetwork: React.FC<DigNetworkProps> = ({ targetPadIndex, onClose 
 
         window.addEventListener('message', handleMessage);
 
-        // Request time updates from Rutube player periodically
         const requestTimeInterval = setInterval(() => {
             if (playerRef.current?.contentWindow) {
                 playerRef.current.contentWindow.postMessage(
@@ -232,17 +245,17 @@ export const DigNetwork: React.FC<DigNetworkProps> = ({ targetPadIndex, onClose 
         };
     }, [showPlayer, preview?.embedUrl, preview?.platform]);
 
-    // Get current time from player (YouTube or Rutube)
+    // Get current time from player (YouTube, Rutube)
     const getCurrentPlayerTime = useCallback((): number | null => {
         if (preview?.platform === 'youtube') {
             if (ytPlayerRef.current && typeof ytPlayerRef.current.getCurrentTime === 'function') {
                 return Math.floor(ytPlayerRef.current.getCurrentTime());
             }
         } else if (preview?.platform === 'rutube') {
-            return rutubeCurrentTime;
+            return externalPlayerTime;
         }
         return null;
-    }, [preview?.platform, rutubeCurrentTime]);
+    }, [preview?.platform, externalPlayerTime]);
 
     // Set start time from current player position
     const setStartFromPlayer = useCallback(() => {
@@ -279,6 +292,107 @@ export const DigNetwork: React.FC<DigNetworkProps> = ({ targetPadIndex, onClose 
         const newEnd = Math.max(startTime + 1, Math.min(value, maxEnd));
         setEndTime(newEnd);
     };
+
+    // --- WebRTC Live Capture Logic ---
+
+    const startLiveCapture = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getDisplayMedia({
+                video: true, // video is required for getDisplayMedia
+                audio: {
+                    echoCancellation: false,
+                    noiseSuppression: false,
+                    autoGainControl: false,
+                } as any
+            });
+
+            const audioTracks = stream.getAudioTracks();
+            if (audioTracks.length === 0) {
+                setError("No audio track found. Make sure to check 'Share tab audio' in the sharing dialog.");
+                stream.getTracks().forEach(t => t.stop());
+                return;
+            }
+
+            setCaptureStream(stream);
+
+            const mediaRecorder = new MediaRecorder(new MediaStream(audioTracks));
+            const chunks: Blob[] = [];
+
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) chunks.push(e.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+                const blob = new Blob(chunks, { type: 'audio/webm' });
+                const arrayBuffer = await blob.arrayBuffer();
+                // Use slice(0) to create a copy because decodeAudioData detaches the buffer
+                const audioBuffer = await audioContext?.decodeAudioData(arrayBuffer.slice(0));
+
+                if (audioBuffer) {
+                    const sampleId = `capture-${Date.now()}`;
+                    const waveform = generateWaveform(audioBuffer);
+                    const sampleName = `CAPTURE ${new Date().toLocaleTimeString()}`;
+
+                    loadSampleToWorklet(sampleId, audioBuffer);
+                    updatePad(targetPadIndex, {
+                        sampleId,
+                        buffer: audioBuffer,
+                        start: 0,
+                        end: 1,
+                        viewStart: 0,
+                        viewEnd: 1,
+                    });
+
+                    usePadStore.setState(state => ({
+                        samples: { ...state.samples, [sampleId]: { name: sampleName, waveform } }
+                    }));
+
+                    await dbService.saveSample({
+                        id: sampleId,
+                        name: sampleName,
+                        data: arrayBuffer,
+                        waveform,
+                    });
+
+                    // Cleanup stream
+                    stream.getTracks().forEach(t => t.stop());
+                    setCaptureStream(null);
+                    setIsRecording(false);
+                }
+            };
+
+            setRecorder(mediaRecorder);
+            setError(null);
+        } catch (err: any) {
+            if (err.name !== 'NotAllowedError') {
+                setError("Failed to start capture: " + err.message);
+            }
+        }
+    };
+
+    const toggleRecording = () => {
+        if (!recorder) return;
+
+        if (isRecording) {
+            recorder.stop();
+        } else {
+            setRecordedChunks([]);
+            recorder.start();
+            setIsRecording(true);
+        }
+    };
+
+    const stopCaptureMode = () => {
+        if (captureStream) {
+            captureStream.getTracks().forEach(t => t.stop());
+        }
+        setCaptureStream(null);
+        setRecorder(null);
+        setIsRecording(false);
+        setIsCaptureMode(false);
+    };
+
+    // --- End WebRTC Logic ---
 
     // Extract and load to pad
     const handleDig = useCallback(async () => {
@@ -347,16 +461,29 @@ export const DigNetwork: React.FC<DigNetworkProps> = ({ targetPadIndex, onClose 
     }, [parsedUrl, audioContext, preview, targetPadIndex, updatePad, loadSampleToWorklet, onClose, startTime, endTime, showTimeRange, isValidRange]);
 
     return (
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4 h-full min-h-0 px-2 py-2">
             {/* Backend Status */}
-            <div className="flex items-center justify-between px-1">
+            <div className="flex-none flex items-center justify-between px-1">
                 <div className="flex items-center gap-2">
                     <Disc3 size={14} className="text-retro-accent animate-spin-slow" />
                     <span className="text-[9px] font-extrabold uppercase tracking-widest text-zinc-500">
                         Dig Network
                     </span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 focus-within:z-50">
+                    <button
+                        onClick={() => setIsCaptureMode(!isCaptureMode)}
+                        className={`px-2 py-1 rounded-md text-[8px] font-extrabold uppercase tracking-tight transition-all flex items-center gap-1.5 border ${isCaptureMode
+                            ? 'bg-retro-accent/20 border-retro-accent text-retro-accent'
+                            : 'bg-zinc-800 border-white/5 text-zinc-500 hover:text-zinc-400'
+                            }`}
+                    >
+                        <Disc3 size={10} className={isCaptureMode ? 'animate-spin-slow' : ''} />
+                        Live Capture
+                    </button>
+
+                    <div className="w-[1px] h-3 bg-white/10 mx-1" />
+
                     {backendAvailable === null ? (
                         <Loader2 size={10} className="animate-spin text-zinc-500" />
                     ) : backendAvailable ? (
@@ -367,24 +494,24 @@ export const DigNetwork: React.FC<DigNetworkProps> = ({ targetPadIndex, onClose 
                     ) : (
                         <>
                             <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                            <span className="text-[8px] font-bold text-amber-500 uppercase">Server not running</span>
+                            <span className="text-[8px] font-bold text-amber-500 uppercase">SERVER OFF</span>
                         </>
                     )}
                 </div>
             </div>
 
             {/* URL Input */}
-            <div className="relative">
+            <div className="flex-none relative">
                 <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
                     {parsedUrl && parsedUrl.platform !== 'unknown' ? (
                         <div
-                            className="p-1 rounded"
-                            style={{ backgroundColor: `${getPlatformColor(parsedUrl.platform)}20` }}
+                            className="p-1 rounded bg-white/5"
+                            style={{ color: getPlatformColor(parsedUrl.platform) }}
                         >
-                            <PlatformIcon platform={parsedUrl.platform} size={14} />
+                            <PlatformIcon platform={parsedUrl.platform} size={12} />
                         </div>
                     ) : (
-                        <Search size={14} className="text-zinc-500" />
+                        <Search className="text-zinc-600" size={14} />
                     )}
                 </div>
                 <input
@@ -394,421 +521,171 @@ export const DigNetwork: React.FC<DigNetworkProps> = ({ targetPadIndex, onClose 
                     value={inputUrl}
                     onChange={(e) => setInputUrl(e.target.value)}
                     onPaste={handlePaste}
-                    className="w-full bg-black/60 border border-white/10 rounded-xl py-3 pl-8 pr-4 text-[11px] font-bold text-white focus:border-retro-accent/50 focus:outline-none transition-all placeholder:text-zinc-600"
+                    className="w-full bg-black/60 border border-white/10 rounded-xl py-3 pl-10 pr-4 text-[11px] font-bold text-white focus:border-retro-accent/50 focus:outline-none transition-all placeholder:text-zinc-600"
                 />
-                {parsedUrl?.isValid && parsedUrl.platform !== 'unknown' && (
-                    <div
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[8px] font-extrabold uppercase px-2 py-0.5 rounded-full"
-                        style={{
-                            backgroundColor: `${getPlatformColor(parsedUrl.platform)}20`,
-                            color: getPlatformColor(parsedUrl.platform)
-                        }}
-                    >
-                        {getPlatformName(parsedUrl.platform)}
+            </div>
+
+            {/* Main Content Area */}
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                {isSearching && (
+                    <div className="flex flex-col items-center justify-center py-20 gap-3 bg-zinc-900/40 border border-white/5 rounded-xl">
+                        <Loader2 size={24} className="text-retro-accent animate-spin" />
+                        <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Searching Videos...</span>
+                    </div>
+                )}
+
+                {searchResults.length > 0 && !preview && !isSearching && (
+                    <div className="flex-1 flex flex-col gap-3 min-h-0 min-w-0 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="flex-none flex items-center justify-between px-1">
+                            <div className="flex items-center gap-2">
+                                <Search size={12} className="text-zinc-500" />
+                                <span className="text-[9px] font-extrabold text-zinc-500 uppercase tracking-widest">
+                                    Results on YouTube
+                                </span>
+                            </div>
+                            <span className="text-[8px] font-bold text-zinc-600">{searchResults.length} found</span>
+                        </div>
+                        <div className="flex-1 overflow-y-auto no-scrollbar pr-1 space-y-2">
+                            {searchResults.map((result) => (
+                                <button
+                                    key={result.id + result.url}
+                                    onClick={() => setInputUrl(result.url)}
+                                    className="w-full flex gap-3 bg-zinc-900/50 hover:bg-zinc-800 border border-white/5 hover:border-retro-accent/30 p-2 rounded-xl transition-all text-left group"
+                                >
+                                    <div className="relative flex-none w-24 aspect-video bg-black rounded-lg overflow-hidden border border-white/5">
+                                        {result.thumbnail && <img src={result.thumbnail} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="" />}
+                                        <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
+                                        {result.duration_string && (
+                                            <div className="absolute bottom-1 right-1 bg-black/80 px-1 py-0.5 text-[8px] font-bold text-white rounded">
+                                                {result.duration_string}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex-1 min-w-0 py-0.5">
+                                        <h4 className="text-[11px] font-bold text-white leading-tight group-hover:text-retro-accent transition-colors line-clamp-2">
+                                            {result.title}
+                                        </h4>
+                                        <p className="text-[9px] text-zinc-500 font-bold truncate mt-1">{result.uploader}</p>
+                                    </div>
+                                </button>
+                            ))}
+
+                            {searchResults.length > 0 && (
+                                <button
+                                    onClick={() => setSearchLimit(prev => prev + 15)}
+                                    disabled={isLoadingMore}
+                                    className="w-full py-4 mt-2 flex flex-col items-center justify-center gap-2 border border-dashed border-white/10 rounded-xl hover:border-retro-accent/40 hover:bg-retro-accent/5 transition-all group"
+                                >
+                                    {isLoadingMore ? (
+                                        <Loader2 size={16} className="text-retro-accent animate-spin" />
+                                    ) : (
+                                        <span className="text-[9px] font-extrabold uppercase text-zinc-500 group-hover:text-white tracking-[0.2em]">Load More Results</span>
+                                    )}
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {(preview || (!isSearching && searchResults.length === 0)) && (
+                    <div className={`flex-1 min-h-0 min-w-0 ${preview ? 'overflow-hidden' : 'overflow-y-auto no-scrollbar pb-10'}`}>
+                        {preview && (
+                            <div className="bg-zinc-900/80 border border-white/5 rounded-xl overflow-hidden shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                {showPlayer && preview.embedUrl ? (
+                                    <div className="aspect-video bg-black relative">
+                                        <iframe
+                                            ref={playerRef}
+                                            src={`${preview.embedUrl}${preview.platform === 'youtube' ? '?enablejsapi=1&origin=' + window.location.origin + '&autoplay=1' : '?autoStart=true'}`}
+                                            className="w-full h-full border-none"
+                                            allow="autoplay; fullscreen; picture-in-picture"
+                                            allowFullScreen
+                                        />
+                                        <button onClick={() => setShowPlayer(false)} className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-black text-white rounded-lg backdrop-blur-md transition-all z-20 border border-white/10">
+                                            <X size={14} />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="relative aspect-video group cursor-pointer" onClick={() => setShowPlayer(true)}>
+                                        <img src={preview.thumbnail} className="w-full h-full object-cover" alt="" />
+                                        <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors" />
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                                            <div className="w-14 h-14 bg-retro-accent rounded-full flex items-center justify-center text-white shadow-xl shadow-retro-accent/40 group-hover:scale-110 transition-transform duration-300">
+                                                <Play size={24} fill="white" className="ml-1" />
+                                            </div>
+                                            <span className="text-[10px] font-extrabold text-white uppercase tracking-widest bg-black/40 px-3 py-1 rounded-full backdrop-blur-sm">Preview Video</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="p-4 space-y-4">
+                                    <div className="space-y-1">
+                                        <h3 className="text-[13px] font-extrabold text-white leading-tight tracking-tight">{preview.title}</h3>
+                                        <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
+                                            <span>{preview.uploader}</span>
+                                            {preview.duration && <><span className="text-zinc-700">•</span><span>{formatTime(preview.duration)}</span></>}
+                                        </div>
+                                    </div>
+
+                                    {showTimeRange && videoDuration > 0 && (
+                                        <div className="space-y-3 bg-black/40 p-3 rounded-lg border border-white/5">
+                                            <div className="relative h-6 flex items-center">
+                                                <div className="absolute inset-x-0 h-1 bg-zinc-800 rounded-full" />
+                                                <div className="absolute h-1 bg-retro-accent rounded-full" style={{ left: `${(startTime / videoDuration) * 100}%`, width: `${((endTime - startTime) / videoDuration) * 100}%` }} />
+                                                <input type="range" min={0} max={videoDuration} value={startTime} onChange={(e) => handleStartTimeChange(Number(e.target.value))} className="absolute inset-0 w-full opacity-0 z-20 cursor-pointer" style={{ clipPath: 'inset(0 50% 0 0)' }} />
+                                                <input type="range" min={0} max={videoDuration} value={endTime} onChange={(e) => handleEndTimeChange(Number(e.target.value))} className="absolute inset-0 w-full opacity-0 z-20 cursor-pointer" style={{ clipPath: 'inset(0 0 0 50%)' }} />
+                                            </div>
+                                            <div className="flex justify-between text-[10px] font-mono text-zinc-500">
+                                                <span>{formatTime(startTime)}</span>
+                                                <span>{formatTime(endTime)}</span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="flex flex-col gap-2">
+                                        {isCaptureMode ? (
+                                            <button onClick={startLiveCapture} className="w-full py-3 bg-retro-accent text-white rounded-xl font-extrabold text-[12px] uppercase tracking-widest">Initialize Capture</button>
+                                        ) : (
+                                            <button onClick={handleDig} disabled={isExtracting || !backendAvailable} className="w-full py-3 bg-retro-accent text-white rounded-xl font-extrabold text-[11px] uppercase shadow-lg shadow-retro-accent/20">
+                                                {isExtracting ? 'Extracting...' : `Dig to Pad ${targetPadIndex + 1}`}
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {!preview && searchResults.length === 0 && (
+                            <>
+                                {recentDigs.length > 0 && (
+                                    <div className="space-y-3 px-1">
+                                        <h4 className="text-[9px] font-extrabold uppercase tracking-widest text-zinc-600 px-1">Recent Digs</h4>
+                                        <div className="grid grid-cols-1 gap-2">
+                                            {recentDigs.map((dig) => (
+                                                <button key={dig.id} onClick={() => setInputUrl(dig.url)} className="flex items-center gap-3 bg-zinc-900/40 border border-white/5 p-2 rounded-xl hover:border-retro-accent/30 transition-all text-left group">
+                                                    {dig.thumbnail ? <img src={dig.thumbnail} className="w-12 h-12 rounded-lg object-cover" alt="" /> : <div className="w-12 h-12 bg-zinc-800 rounded-lg" />}
+                                                    <div className="min-w-0">
+                                                        <p className="text-[10px] font-bold text-white truncate group-hover:text-retro-accent">{dig.title}</p>
+                                                        <p className="text-[8px] text-zinc-500 uppercase">{getPlatformName(dig.platform)}</p>
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="grid grid-cols-2 gap-2 px-1">
+                                    {(['youtube', 'tiktok', 'instagram', 'rutube'] as SocialPlatform[]).map((p) => (
+                                        <div key={p} className="bg-zinc-900/30 border border-white/5 rounded-xl p-3 flex items-center gap-3 opacity-50">
+                                            <PlatformIcon platform={p} size={16} />
+                                            <span className="text-[10px] font-bold text-zinc-400 capitalize">{p}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
+                        )}
                     </div>
                 )}
             </div>
-            {/* Search Results */}
-            {isSearching && (
-                <div className="flex flex-col items-center justify-center py-12 gap-3 bg-zinc-900/40 border border-white/5 rounded-xl animate-in fade-in duration-300">
-                    <Loader2 size={24} className="text-retro-accent animate-spin" />
-                    <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Searching Videos...</span>
-                </div>
-            )}
-
-            {searchResults.length > 0 && !preview && !isSearching && (
-                <div className="space-y-3 mt-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                    <div className="flex items-center justify-between px-1">
-                        <div className="flex items-center gap-2">
-                            <Search size={12} className="text-zinc-500" />
-                            <span className="text-[9px] font-extrabold text-zinc-500 uppercase tracking-widest">Results on {searchResults[0]?.platform === 'youtube' ? 'YouTube' : 'Social Media'}</span>
-                        </div>
-                        <span className="text-[8px] font-bold text-zinc-600">{searchResults.length} found</span>
-                    </div>
-                    <div className="grid grid-cols-1 gap-2 max-h-[400px] overflow-y-auto no-scrollbar pr-1">
-                        {searchResults.map((result) => (
-                            <button
-                                key={result.id + result.url}
-                                onClick={() => setInputUrl(result.url)}
-                                className="flex gap-3 bg-zinc-900/50 hover:bg-zinc-800 border border-white/5 hover:border-retro-accent/30 p-2 rounded-xl transition-all text-left group"
-                            >
-                                <div className="relative flex-none w-24 aspect-video bg-black rounded-lg overflow-hidden border border-white/5">
-                                    {result.thumbnail && <img src={result.thumbnail} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="" />}
-                                    <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
-                                    {result.duration_string && (
-                                        <div className="absolute bottom-1 right-1 bg-black/80 px-1 py-0.5 text-[8px] font-bold text-white rounded">
-                                            {result.duration_string}
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="flex-1 min-w-0 py-0.5">
-                                    <h4 className="text-[11px] font-bold text-white leading-tight group-hover:text-retro-accent transition-colors line-clamp-2">
-                                        {result.title}
-                                    </h4>
-                                    {result.uploader && (
-                                        <p className="text-[9px] text-zinc-500 font-bold truncate mt-1">
-                                            {result.uploader}
-                                        </p>
-                                    )}
-                                    <div className="flex items-center gap-2 mt-1.5">
-                                        <div
-                                            className="px-1.5 py-0.5 rounded-full text-[7px] font-extrabold uppercase ring-1 ring-inset"
-                                            style={{
-                                                backgroundColor: result.platform === 'youtube' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(168, 85, 247, 0.1)',
-                                                color: result.platform === 'youtube' ? '#ef4444' : '#a855f7',
-                                                borderColor: result.platform === 'youtube' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(168, 85, 247, 0.2)'
-                                            }}
-                                        >
-                                            {result.platform}
-                                        </div>
-                                    </div>
-                                </div>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            )}
-            {/* Preview Card */}
-            {preview && (
-                <div className="bg-zinc-900/80 border border-white/5 rounded-xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    {/* Video Preview / Player */}
-                    {showPlayer && preview.embedUrl ? (
-                        <div>
-                            {/* Video iframe - no overlay */}
-                            <div className="aspect-video bg-black">
-                                <iframe
-                                    ref={playerRef}
-                                    id="yt-player"
-                                    src={`${preview.embedUrl}?enablejsapi=1&origin=${window.location.origin}`}
-                                    className="w-full h-full"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                    allowFullScreen
-                                />
-                            </div>
-                            {/* Player controls - below video */}
-                            <div className="bg-zinc-800/80 px-3 py-2 flex items-center justify-between gap-2">
-                                {/* Set Start/End buttons - YouTube and Rutube */}
-                                {(preview.platform === 'youtube' || preview.platform === 'rutube') && (
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={setStartFromPlayer}
-                                            className="bg-emerald-500/80 hover:bg-emerald-500 px-3 py-1.5 text-[9px] font-extrabold text-white rounded-lg transition-all flex items-center gap-1"
-                                        >
-                                            ▶ Set Start {preview.platform === 'rutube' && rutubeCurrentTime > 0 && `(${formatTime(rutubeCurrentTime)})`}
-                                        </button>
-                                        <button
-                                            onClick={setEndFromPlayer}
-                                            className="bg-amber-500/80 hover:bg-amber-500 px-3 py-1.5 text-[9px] font-extrabold text-white rounded-lg transition-all flex items-center gap-1"
-                                        >
-                                            ■ Set End
-                                        </button>
-                                    </div>
-                                )}
-                                {/* Current time display for Rutube */}
-                                {preview.platform === 'rutube' && rutubeCurrentTime > 0 && (
-                                    <span className="text-[10px] font-mono font-bold text-zinc-400">
-                                        {formatTime(rutubeCurrentTime)}
-                                    </span>
-                                )}
-                                <button
-                                    onClick={() => setShowPlayer(false)}
-                                    className="bg-zinc-700/80 hover:bg-zinc-600 px-3 py-1.5 text-[9px] font-bold text-white rounded-lg transition-all ml-auto"
-                                >
-                                    Hide Player
-                                </button>
-                            </div>
-                        </div>
-                    ) : preview.thumbnail ? (
-                        <div
-                            className="relative aspect-video bg-black cursor-pointer group"
-                            onClick={() => preview.embedUrl && setShowPlayer(true)}
-                        >
-                            <img
-                                src={preview.thumbnail}
-                                alt={preview.title}
-                                className="w-full h-full object-cover"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent" />
-
-                            {/* Play button overlay */}
-                            {preview.embedUrl && (
-                                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <div className="w-16 h-16 bg-retro-accent/90 rounded-full flex items-center justify-center shadow-2xl shadow-retro-accent/50">
-                                        <Play size={28} className="text-white ml-1" fill="white" />
-                                    </div>
-                                </div>
-                            )}
-
-                            <div
-                                className="absolute top-2 left-2 text-[8px] font-extrabold uppercase px-2 py-1 rounded-full flex items-center gap-1"
-                                style={{
-                                    backgroundColor: `${getPlatformColor(preview.platform)}`,
-                                    color: 'white'
-                                }}
-                            >
-                                <PlatformIcon platform={preview.platform} size={10} />
-                                {getPlatformName(preview.platform)}
-                            </div>
-                            {preview.duration && (
-                                <div className="absolute bottom-2 right-2 bg-black/80 px-2 py-0.5 text-[9px] font-extrabold rounded border border-white/10 text-white flex items-center gap-1">
-                                    <Clock size={10} />
-                                    {preview.duration}
-                                </div>
-                            )}
-
-                            {/* Hint to click */}
-                            {preview.embedUrl && (
-                                <div className="absolute bottom-2 left-2 bg-black/80 px-2 py-0.5 text-[8px] font-bold text-zinc-400 rounded border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    Click to preview video
-                                </div>
-                            )}
-                        </div>
-                    ) : preview.isLoading ? (
-                        <div className="aspect-video bg-black flex items-center justify-center">
-                            <Loader2 className="w-8 h-8 text-retro-accent animate-spin" />
-                        </div>
-                    ) : (
-                        <div className="aspect-video bg-gradient-to-br from-zinc-900 to-black flex items-center justify-center">
-                            <PlatformIcon platform={preview.platform} size={48} />
-                        </div>
-                    )}
-
-                    {/* Info & Controls */}
-                    <div className="p-4 space-y-3">
-                        <div>
-                            <h3 className="font-extrabold text-sm text-white truncate mb-1">
-                                {preview.title}
-                            </h3>
-                            {preview.author && (
-                                <p className="text-[10px] text-zinc-500 font-bold truncate">
-                                    by {preview.author}
-                                </p>
-                            )}
-                        </div>
-
-                        {/* Time Range Selector */}
-                        {showTimeRange && videoDuration > 0 && (
-                            <div className="bg-black/40 rounded-xl p-3 space-y-3 border border-white/5">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <Scissors size={12} className="text-retro-accent" />
-                                        <span className="text-[9px] font-extrabold uppercase tracking-wider text-zinc-400">
-                                            Select Range
-                                        </span>
-                                    </div>
-                                    <div className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${isValidRange
-                                        ? 'bg-emerald-500/20 text-emerald-400'
-                                        : 'bg-red-500/20 text-red-400'
-                                        }`}>
-                                        {formatTime(selectedDuration)} / {formatTime(MAX_DURATION_SECONDS)} max
-                                    </div>
-                                </div>
-
-                                {/* Visual Timeline */}
-                                <div className="relative h-8 bg-zinc-800 rounded-lg overflow-hidden">
-                                    {/* Selected range indicator */}
-                                    <div
-                                        className="absolute h-full bg-retro-accent/30"
-                                        style={{
-                                            left: `${(startTime / videoDuration) * 100}%`,
-                                            width: `${((endTime - startTime) / videoDuration) * 100}%`
-                                        }}
-                                    />
-
-                                    {/* Start handle */}
-                                    <input
-                                        type="range"
-                                        min={0}
-                                        max={videoDuration}
-                                        value={startTime}
-                                        onChange={(e) => handleStartTimeChange(Number(e.target.value))}
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                        style={{ clipPath: 'inset(0 50% 0 0)' }}
-                                    />
-
-                                    {/* End handle */}
-                                    <input
-                                        type="range"
-                                        min={0}
-                                        max={videoDuration}
-                                        value={endTime}
-                                        onChange={(e) => handleEndTimeChange(Number(e.target.value))}
-                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                                        style={{ clipPath: 'inset(0 0 0 50%)' }}
-                                    />
-
-                                    {/* Start marker */}
-                                    <div
-                                        className="absolute top-0 bottom-0 w-1 bg-emerald-500 shadow-lg"
-                                        style={{ left: `${(startTime / videoDuration) * 100}%` }}
-                                    >
-                                        <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-emerald-500 rounded-full" />
-                                    </div>
-
-                                    {/* End marker */}
-                                    <div
-                                        className="absolute top-0 bottom-0 w-1 bg-amber-500 shadow-lg"
-                                        style={{ left: `${(endTime / videoDuration) * 100}%` }}
-                                    >
-                                        <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-amber-500 rounded-full" />
-                                    </div>
-                                </div>
-
-                                {/* Time inputs */}
-                                <div className="flex items-center gap-3 w-full">
-                                    <div className="flex-1 flex items-center justify-between bg-zinc-900/60 rounded-lg px-3 py-1.5 border border-white/5">
-                                        <span className="text-[8px] font-bold text-emerald-400 uppercase tracking-wider">Start</span>
-                                        <input
-                                            type="text"
-                                            value={formatTime(startTime)}
-                                            onChange={(e) => handleStartTimeChange(parseTime(e.target.value))}
-                                            className="w-16 bg-transparent text-[11px] font-mono font-bold text-white text-right outline-none"
-                                        />
-                                    </div>
-                                    <div className="flex-none text-zinc-600 font-bold">→</div>
-                                    <div className="flex-1 flex items-center justify-between bg-zinc-900/60 rounded-lg px-3 py-1.5 border border-white/5">
-                                        <span className="text-[8px] font-bold text-amber-400 uppercase tracking-wider">End</span>
-                                        <input
-                                            type="text"
-                                            value={formatTime(endTime)}
-                                            onChange={(e) => handleEndTimeChange(parseTime(e.target.value))}
-                                            className="w-16 bg-transparent text-[11px] font-mono font-bold text-white text-right outline-none"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Warning if over limit */}
-                                {!isValidRange && (
-                                    <div className="flex items-center gap-2 text-[9px] text-red-400">
-                                        <AlertCircle size={12} />
-                                        Maximum {MAX_DURATION_SECONDS / 60} minutes allowed
-                                    </div>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Extraction Progress */}
-                        {isExtracting && extractionProgress && (
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between text-[9px]">
-                                    <span className="text-zinc-400 font-bold uppercase">
-                                        {extractionProgress.message}
-                                    </span>
-                                    <span className="text-retro-accent font-extrabold">
-                                        {extractionProgress.progress}%
-                                    </span>
-                                </div>
-                                <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full bg-retro-accent transition-all duration-300"
-                                        style={{ width: `${extractionProgress.progress}%` }}
-                                    />
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Error */}
-                        {error && (
-                            <div className="flex items-center gap-2 text-red-400 bg-red-500/10 px-3 py-2 rounded-lg">
-                                <AlertCircle size={14} />
-                                <span className="text-[10px] font-bold">{error}</span>
-                            </div>
-                        )}
-
-                        {/* Actions */}
-                        <div className="flex gap-2">
-                            <button
-                                onClick={handleDig}
-                                disabled={isExtracting || !backendAvailable || (showTimeRange && !isValidRange)}
-                                className={`flex-1 py-3 rounded-xl font-extrabold text-[11px] uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${isExtracting || !backendAvailable || (showTimeRange && !isValidRange)
-                                    ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
-                                    : 'bg-retro-accent text-white hover:bg-retro-accent/80 active:scale-95 shadow-lg shadow-retro-accent/20'
-                                    }`}
-                            >
-                                {isExtracting ? (
-                                    <>
-                                        <Loader2 size={14} className="animate-spin" />
-                                        Extracting...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Zap size={14} />
-                                        Dig {showTimeRange && `(${formatTime(selectedDuration)})`} to Pad {targetPadIndex + 1}
-                                    </>
-                                )}
-                            </button>
-                            <a
-                                href={preview.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-3 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-zinc-400 hover:text-white transition-all"
-                            >
-                                <ExternalLink size={14} />
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-
-
-            {/* Recent Digs */}
-            {recentDigs.length > 0 && (
-                <div className="space-y-2">
-                    <h4 className="text-[9px] font-extrabold uppercase tracking-widest text-zinc-600 px-1">
-                        Recent Digs
-                    </h4>
-                    <div className="grid grid-cols-2 gap-2">
-                        {recentDigs.map((dig) => (
-                            <div
-                                key={dig.id}
-                                onClick={() => setInputUrl(dig.url)}
-                                className="bg-zinc-900/50 border border-white/5 rounded-lg p-2 cursor-pointer hover:border-retro-accent/30 transition-all"
-                            >
-                                <div className="flex items-center gap-2">
-                                    {dig.thumbnail ? (
-                                        <img src={dig.thumbnail} className="w-10 h-10 rounded object-cover" />
-                                    ) : (
-                                        <div className="w-10 h-10 rounded bg-zinc-800 flex items-center justify-center">
-                                            <PlatformIcon platform={dig.platform} size={14} />
-                                        </div>
-                                    )}
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-[9px] font-extrabold text-white truncate">
-                                            {dig.title}
-                                        </p>
-                                        <p className="text-[8px] text-zinc-500 uppercase">
-                                            {getPlatformName(dig.platform)}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* Platform Hints */}
-            {!preview && !inputUrl && (
-                <div className="grid grid-cols-2 gap-2 mt-4">
-                    {(['youtube', 'tiktok', 'instagram', 'rutube'] as SocialPlatform[]).map((platform) => (
-                        <div
-                            key={platform}
-                            className="bg-zinc-900/30 border border-white/5 rounded-xl p-3 flex items-center gap-3 opacity-50"
-                        >
-                            <div
-                                className="p-2 rounded-lg"
-                                style={{ backgroundColor: `${getPlatformColor(platform)}15` }}
-                            >
-                                <PlatformIcon platform={platform} size={16} />
-                            </div>
-                            <span className="text-[10px] font-bold text-zinc-400">
-                                {getPlatformName(platform)}
-                            </span>
-                        </div>
-                    ))}
-                </div>
-            )}
         </div>
     );
 };

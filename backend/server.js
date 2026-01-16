@@ -75,8 +75,9 @@ async function checkYtDlp() {
  */
 async function getVideoInfo(url) {
     try {
+        // Use flags to be more robust against blocks
         const { stdout } = await execAsync(
-            `yt-dlp --dump-json --no-download "${url}"`,
+            `yt-dlp --dump-json --no-download --no-check-certificate --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36" "${url}"`,
             { timeout: 30000 }
         );
         return JSON.parse(stdout);
@@ -100,6 +101,7 @@ async function extractAudio(url, outputPath, options = {}) {
             '--no-playlist',               // Don't download playlists
             '--no-warnings',               // Suppress warnings
             '--no-check-certificate',      // Skip certificate verification
+            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
         ];
 
         // Add time range if specified (yt-dlp 2021.12.01+)
@@ -226,7 +228,7 @@ app.post('/info', async (req, res) => {
     const info = await getVideoInfo(url);
 
     if (!info) {
-        return res.status(500).json({ error: 'Failed to get video info' });
+        return res.status(404).json({ error: 'Failed to get video info. The URL might be invalid or the platform is blocking the request.' });
     }
 
     // Generate embed URL based on platform

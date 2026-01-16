@@ -338,8 +338,8 @@ export const SampleBrowser: React.FC<SampleBrowserProps> = ({ onClose, isLandsca
         </div>
       </div>
 
-      <div id="browser-scroll-area" className="flex-1 overflow-y-auto no-scrollbar pb-10">
-        <div className="max-w-2xl mx-auto px-2 py-2 space-y-2">
+      <div id="browser-scroll-area" className={`flex-1 ${sampleTab === 'DIG' ? 'overflow-hidden flex flex-col pb-0' : 'overflow-y-auto pb-10'} no-scrollbar`}>
+        <div className={`max-w-2xl mx-auto w-full ${sampleTab === 'DIG' ? 'flex-1 flex flex-col h-full min-h-0' : 'px-2 py-2 space-y-2'}`}>
 
           {/* Search Bar & Manager (Library Only) */}
           {sampleTab === 'LIBRARY' && (
@@ -428,7 +428,7 @@ export const SampleBrowser: React.FC<SampleBrowserProps> = ({ onClose, isLandsca
               {visibleCount < allFilteredLibrary.length && <div id="library-loader" ref={observerTarget} className="w-full py-8 flex items-center justify-center"><Loader2 className="w-6 h-6 text-retro-accent animate-spin" /></div>}
             </div>
           ) : (
-            <div id="dig-content" className="space-y-4">
+            <div id="dig-content" className="flex-1 flex flex-col min-h-0">
               <DigNetwork targetPadIndex={targetPadIndex} onClose={onClose} />
             </div>
           )}

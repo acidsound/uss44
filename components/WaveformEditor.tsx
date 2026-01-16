@@ -20,11 +20,12 @@ export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMod
 
   const detectedBpm = useMemo(() => {
     if (activePad?.buffer) {
-      const sliceDuration = (activePad.end - activePad.start) * activePad.buffer.duration;
+      const pitch = activePad.pitch || 1.0;
+      const sliceDuration = ((activePad.end - activePad.start) * activePad.buffer.duration) / pitch;
       return calculateLoopBPM(sliceDuration);
     }
     return null;
-  }, [activePad?.buffer, activePad?.start, activePad?.end]);
+  }, [activePad?.buffer, activePad?.start, activePad?.end, activePad?.pitch]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);

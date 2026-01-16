@@ -38,6 +38,12 @@ interface PadState {
   // Helpers for Project Service
   setPadsFromData: (pads: Record<string, Pad>) => void;
   resetAllPads: () => void;
+
+  // Clone functionality
+  isCloneMode: boolean;
+  sourcePadId: string | null;
+  setCloneMode: (sourcePadId: string | null) => void;
+  executeClone: (targetPadIndex: number) => void;
 }
 
 const DEFAULT_ENVELOPE: Envelope = { attack: 0.001, decay: 0.1, sustain: 1, release: 0.05 };
@@ -97,6 +103,8 @@ export const usePadStore = create<PadState>((set, get) => ({
   samples: {},
   samplePacks: [],
   currentSamplePackId: 'factory-default',
+  isCloneMode: false,
+  sourcePadId: null,
 
   resetPads: () => {
     set({ pads: createBasePads(), samples: {} });
@@ -328,7 +336,11 @@ export const usePadStore = create<PadState>((set, get) => ({
     const defaultPad = basePads[id];
     if (defaultPad) {
       if (currentPad?.sampleId) {
-        useAudioStore.getState().removeSampleFromWorklet(currentPad.sampleId);
+        // Only remove from worklet if no other pads are using this sampleId
+        const otherPadsUsingSample = Object.values(pads).filter(p => p.id !== id && p.sampleId === currentPad.sampleId);
+        if (otherPadsUsingSample.length === 0) {
+          useAudioStore.getState().removeSampleFromWorklet(currentPad.sampleId);
+        }
       }
       set(state => ({ pads: { ...state.pads, [id]: defaultPad } }));
       dbService.savePadConfig(id, defaultPad);
@@ -493,5 +505,53 @@ export const usePadStore = create<PadState>((set, get) => ({
     if (stored) {
       await dbService.saveSample({ ...stored, name: newName });
     }
+  },
+
+  setCloneMode: (sourcePadId) => set({ isCloneMode: !!sourcePadId, sourcePadId }),
+
+  executeClone: (targetPadIndex) => {
+    const { pads, sourcePadId, currentChannel, updatePad, selectPad } = get();
+    if (!sourcePadId) {
+      set({ isCloneMode: false, sourcePadId: null });
+      return;
+    }
+
+    const targetPadId = `${currentChannel}-${targetPadIndex}`;
+    if (sourcePadId === targetPadId) {
+      set({ isCloneMode: false, sourcePadId: null });
+      return;
+    }
+
+    const sourcePad = pads[sourcePadId];
+    if (!sourcePad) {
+      set({ isCloneMode: false, sourcePadId: null });
+      return;
+    }
+
+    // Clone configuration
+    // We update the target pad with source pad's values
+    // Note: updatePad already handles persistence and worklet updates
+    updatePad(targetPadIndex, {
+      sampleId: sourcePad.sampleId,
+      buffer: sourcePad.buffer,
+      volume: sourcePad.volume,
+      pitch: sourcePad.pitch,
+      pan: sourcePad.pan,
+      cutoff: sourcePad.cutoff,
+      resonance: sourcePad.resonance,
+      start: sourcePad.start,
+      end: sourcePad.end,
+      viewStart: sourcePad.viewStart,
+      viewEnd: sourcePad.viewEnd,
+      envelope: { ...sourcePad.envelope },
+      triggerMode: sourcePad.triggerMode,
+      // Keep target pad's original color if preferred, or copy? User said "clone pad", usually means everything.
+      // Keeping original color might be better for grid identification, but user said " 그대로 복사".
+      // Let's copy color too.
+      color: sourcePad.color,
+    });
+
+    selectPad(targetPadIndex);
+    set({ isCloneMode: false, sourcePadId: null });
   }
 }));

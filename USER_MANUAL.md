@@ -60,6 +60,19 @@ When a pad is selected, you can manipulate its sound in real-time. Changes are a
   - **Pan**: Move the sound in the stereo field.
   - **Cutoff / Res**: Control the 12dB/oct State Variable Filter.
   - **💡 Pro Tip**: **Double-click** or **Double-tap** any knob to instantly reset it to its default value!
+- **Pad Options Menu**:
+  - Tap the **PAD** number in the header or use the **Shift + Click** (or context menu) to open pad options.
+  - **Solo/Mute**: Isolate or silence the pad.
+  - **Clone Pad**: Enter **Clone Mode**. While active, click any other pad to copy all settings and the sample link to that target. 
+  - **Clear Pad**: Reset the pad to its default state.
+
+---
+
+## 🔊 Triggering & Playback
+
+### Monophonic Behavior
+- For pads set to **GATE** or **LOOP** trigger modes, playback is strictly **monophonic**. 
+- Re-triggering a pad will immediately cut the previous sound with a smooth 5ms fade-out to prevent digital clicks, starting the new instance cleanly from the beginning.
 
 ---
 
@@ -105,6 +118,8 @@ Export your work at different levels of complexity:
 
 ## 🛠️ Global Tools
 - **BPM Control**: Found in the LCD. Tap or drag to adjust.
+  - **HALF (🐌)** / **DOUBLE (🐰)**: Quickly halve or double the current BPM.
+  - **Precision TAP**: Tap the button to set tempo. Uses high-precision timing with visual feedback.
 - **Init All (Factory Reset)**: Found in the Settings menu. This will clear all active workspace data and restore the **Factory Default Sound Kit**, giving you a clean slate with classic sounds.
 - **Stop Reset**: When the sequencer is stopped, all waveform playheads reset to their start positions.
 

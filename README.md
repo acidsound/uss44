@@ -12,6 +12,7 @@
 
 - **🚀 UltraSample Mode**: Fast, intuitive recording directly to pads. One-touch sampling with automatic silence cropping.
 - **🎹 16-Pad Performance Grid**: Low-latency triggering with full multi-touch support.
+- **👯 Pad Cloning**: Quickly duplicate any pad's settings and sample to another pad via the Pad Options menu.
 - **🎧 Social-Ready Digging**: Integrated 'Dig Network' to pull inspiration directly from web-based audio sources.
 - **🎛️ Real-time DSP** (Applied instantly even during playback):
   - **Pitch**: High-quality resampling from 0.1x to 4x.
@@ -19,6 +20,7 @@
   - **Envelope**: Adjustable Attack and Release per pad.
   - **Pan & Gain**: Precise spatial and level control.
 - **🎼 Step Sequencer**: 16-step patterns per pad with velocity, pitch shifting, and note length per step.
+- **⏱️ Advanced Tempo Control**: Precision Tap Tempo with visual feedback and quick 1/2x or 2x adjustment buttons.
 - **💾 Persistence & Library**:
   - Automatically saves your last session (BPM, Samples, Patterns) to IndexedDB.
   - Export and Import full projects as `.json`.

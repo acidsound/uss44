@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { VolumeX, Volume2, Music, Trash2, X } from 'lucide-react';
+import { VolumeX, Volume2, Music, Trash2, X, Copy } from 'lucide-react';
 import { usePadStore } from '../stores/padStore';
 
 interface PadMenuProps {
@@ -10,7 +10,7 @@ interface PadMenuProps {
 }
 
 export const PadMenu: React.FC<PadMenuProps> = ({ padIndex, isOpen, onClose, anchorRect }) => {
-    const { pads, currentChannel, toggleMute, toggleSolo, clearPad } = usePadStore();
+    const { pads, currentChannel, toggleMute, toggleSolo, clearPad, setCloneMode } = usePadStore();
     const pad = pads[`${currentChannel}-${padIndex}`];
     const menuRef = useRef<HTMLDivElement>(null);
 
@@ -63,6 +63,14 @@ export const PadMenu: React.FC<PadMenuProps> = ({ padIndex, isOpen, onClose, anc
             >
                 {pad.mute ? <Volume2 size={16} /> : <VolumeX size={16} />}
                 <span>{pad.mute ? 'Unmute Pad' : 'Mute Pad'}</span>
+            </button>
+
+            <button
+                onClick={() => { setCloneMode(`${currentChannel}-${padIndex}`); onClose(); }}
+                className="w-full flex items-center gap-3 px-3 py-2 text-xs font-bold text-zinc-300 hover:bg-white/5 hover:text-white transition-all rounded"
+            >
+                <Copy size={16} />
+                <span>Clone Pad</span>
             </button>
 
             <div className="h-px bg-zinc-800 my-1 mx-2" />
