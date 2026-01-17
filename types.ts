@@ -52,6 +52,7 @@ export interface Pad {
   // Transient trigger data for UI feedback
   lastTriggerTime?: number;
   lastTriggerDuration?: number;
+  lastStopTime?: number; // Scheduled stop time (for GATE/LOOP modes)
   isHeld?: boolean; // Track if the pad is currently pressed/held
   mute?: boolean;
   solo?: boolean;

@@ -425,7 +425,8 @@ export const usePadStore = create<PadState>((set, get) => ({
             ...pad,
             isHeld: true,
             lastTriggerTime: startTime || audioContext.currentTime,
-            lastTriggerDuration: duration
+            lastTriggerDuration: duration,
+            lastStopTime: undefined // Clear stop time on new trigger
           }
         }
       }));
@@ -438,10 +439,16 @@ export const usePadStore = create<PadState>((set, get) => ({
     const id = `${effectiveChannel}-${index}`;
     const pad = pads[id];
     if (pad) {
+      const audioCtx = useAudioStore.getState().audioContext;
+      const stopTime = startTime || audioCtx?.currentTime;
       set(state => ({
         pads: {
           ...state.pads,
-          [id]: { ...pad, isHeld: false }
+          [id]: {
+            ...pad,
+            isHeld: false,
+            lastStopTime: stopTime // Track when the pad stops
+          }
         }
       }));
     }

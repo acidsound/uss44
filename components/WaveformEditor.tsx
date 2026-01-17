@@ -276,18 +276,23 @@ export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMod
     drawMarker(activePad.end, '#ffdd00', 'END', true);
 
     if (audioContext && activePad.lastTriggerTime !== undefined && activePad.lastTriggerDuration !== undefined) {
-      const elapsed = audioContext.currentTime - activePad.lastTriggerTime;
+      const now = audioContext.currentTime;
+      const elapsed = now - activePad.lastTriggerTime;
       let shouldDraw = false;
-      // All modes: show playhead based on elapsed time, not isHeld
-      // isHeld may be set to false prematurely when stopPad is scheduled for a future time
+
+      // Determine if playhead should be visible based on trigger mode and stop time
       if (activePad.triggerMode === 'ONE_SHOT') {
+        // ONE_SHOT: always plays to completion regardless of release
         shouldDraw = elapsed >= 0 && elapsed <= activePad.lastTriggerDuration;
-      } else if (activePad.triggerMode === 'GATE') {
-        // GATE: show while playing (within duration)
-        shouldDraw = elapsed >= 0 && elapsed <= activePad.lastTriggerDuration;
-      } else if (activePad.triggerMode === 'LOOP') {
-        // LOOP: show while playing (check if still held or within first duration cycle for sequencer-triggered)
-        shouldDraw = elapsed >= 0 && (activePad.isHeld || elapsed <= activePad.lastTriggerDuration);
+      } else if (activePad.triggerMode === 'GATE' || activePad.triggerMode === 'LOOP') {
+        // GATE/LOOP: respect manual release and scheduled stop time
+        if (activePad.isHeld) {
+          // Still being held (manual trigger) - show playhead
+          shouldDraw = elapsed >= 0;
+        } else if (activePad.lastStopTime !== undefined) {
+          // Released or scheduled stop - show until stop time
+          shouldDraw = elapsed >= 0 && now <= activePad.lastStopTime;
+        }
       }
 
       if (shouldDraw) {
