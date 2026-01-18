@@ -119,6 +119,7 @@ interface Pad {
 | `setCloneMode(sourcePadId)` | 클론 모드 진입 | PadMenu |
 | `executeClone(targetIndex)` | 클론 실행 | PadGrid |
 | `loadSamplePack(packId)` | 샘플 팩 로드 | SamplePackManager |
+| `toggleFavoritePack(packId)` | 샘플 팩 즐겨찾기 토글 | SamplePackManager |
 
 ### 상태 흐름 예시
 

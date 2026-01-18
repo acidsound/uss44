@@ -1,7 +1,7 @@
 
 
 import { create } from 'zustand';
-import { Pad, ChannelId, Envelope, SampleMetadata, TriggerMode, AppMode } from '../types';
+import { Pad, ChannelId, Envelope, SampleMetadata, TriggerMode, AppMode, SamplePack } from '../types';
 import { useAudioStore } from './audioStore';
 import { PAD_COLORS, SAMPLE_SET_URL } from '../constants';
 import { dbService } from '../services/dbService';
@@ -32,12 +32,13 @@ interface PadState {
   updateSampleName: (sampleId: string, newName: string) => Promise<void>;
 
   // Sample Pack Management
-  samplePacks: any[]; // SamplePack[]
+  samplePacks: SamplePack[];
   currentSamplePackId: string;
   loadSamplePack: (packId: string) => Promise<void>;
   addSamplePack: (name: string, url: string) => Promise<void>;
   deleteSamplePack: (packId: string) => Promise<void>;
-  updateSamplePack: (id: string, updates: any) => Promise<void>;
+  updateSamplePack: (id: string, updates: Partial<SamplePack>) => Promise<void>;
+  toggleFavoritePack: (packId: string) => Promise<void>;
 
   // Helpers for Project Service
   setPadsFromData: (pads: Record<string, Pad>) => void;
@@ -134,11 +135,12 @@ export const usePadStore = create<PadState>((set, get) => ({
 
     for (const sp of STRUDEL_PACKS) {
       if (!packs.find(p => p.url === sp.url)) {
-        const newPack = {
+        const newPack: SamplePack = {
           id: `strudel-${sp.name.toLowerCase().replace(/[^a-z0-0]/g, '-')}`,
           name: sp.name,
           url: sp.url,
-          isDefault: false
+          isDefault: false,
+          isFavorite: false
         };
         await dbService.saveSamplePack(newPack);
         packs.push(newPack);
@@ -518,7 +520,7 @@ export const usePadStore = create<PadState>((set, get) => ({
 
   addSamplePack: async (name, url) => {
     const id = `pack-${Date.now()}`;
-    const newPack = { id, name, url };
+    const newPack: SamplePack = { id, name, url, isFavorite: false };
     await dbService.saveSamplePack(newPack);
     const packs = await dbService.getAllSamplePacks();
     set({ samplePacks: packs });
@@ -539,6 +541,16 @@ export const usePadStore = create<PadState>((set, get) => ({
     const pack = packs.find(p => p.id === id);
     if (!pack) return;
     const updatedPack = { ...pack, ...updates };
+    await dbService.saveSamplePack(updatedPack);
+    const newPacks = await dbService.getAllSamplePacks();
+    set({ samplePacks: newPacks });
+  },
+
+  toggleFavoritePack: async (packId) => {
+    const packs = get().samplePacks;
+    const pack = packs.find(p => p.id === packId);
+    if (!pack) return;
+    const updatedPack = { ...pack, isFavorite: !pack.isFavorite };
     await dbService.saveSamplePack(updatedPack);
     const newPacks = await dbService.getAllSamplePacks();
     set({ samplePacks: newPacks });

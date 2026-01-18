@@ -35,7 +35,8 @@ Welcome to the **USS44 Social Sampler**! This manual will guide you through the 
 1. Tap **Dig Library** to see available sample sets.
 2. **Library Icon**: Click the library icon next to the search bar to open the **Sample Pack Manager**.
    - **Add Pack**: Enter a Name and a JSON URL to add your own sample library.
-   - **Switch Pack**: Use the **Switch** button to change the active library source.
+   - **Switch Pack**: Use the **Refresh/Switch** icon button to quickly change the active library source.
+   - **Favorites**: Click the **Star** icon next to any pack to add it to your favorites. Favorites stay at the top of the list for quick access. Use the Star filter next to search to see only your favorite packs.
    - **Import/Export**: Backup or share your entire sample pack list as a JSON file.
 3. Preview sounds by clicking the mini-play icons.
    - **BPM Detection**: During preview, a pulsing BPM estimate will appear under the sample name.

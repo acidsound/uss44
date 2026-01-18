@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { X, Plus, Trash2, Edit2, Download, Upload, Check, Loader2, Library, Search } from 'lucide-react';
+import { X, Plus, Trash2, Edit2, Download, Upload, Check, Loader2, Library, Search, Star, RefreshCw } from 'lucide-react';
 import { usePadStore } from '../stores/padStore';
 
 interface SamplePackManagerProps {
@@ -8,9 +8,10 @@ interface SamplePackManagerProps {
 }
 
 export const SamplePackManager: React.FC<SamplePackManagerProps> = ({ onClose }) => {
-    const { samplePacks, addSamplePack, deleteSamplePack, updateSamplePack, currentSamplePackId, loadSamplePack } = usePadStore();
+    const { samplePacks, addSamplePack, deleteSamplePack, updateSamplePack, currentSamplePackId, loadSamplePack, toggleFavoritePack } = usePadStore();
     const [isAdding, setIsAdding] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
 
     const [newName, setNewName] = useState('');
     const [newUrl, setNewUrl] = useState('');
@@ -20,10 +21,14 @@ export const SamplePackManager: React.FC<SamplePackManagerProps> = ({ onClose })
     const [searchTerm, setSearchTerm] = useState('');
 
     const sortedFilteredPacks = useMemo(() => {
-        const filtered = samplePacks.filter(p =>
+        let filtered = samplePacks.filter(p =>
             p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             p.url.toLowerCase().includes(searchTerm.toLowerCase())
         );
+
+        if (showOnlyFavorites) {
+            filtered = filtered.filter(p => p.isFavorite);
+        }
 
         return filtered.sort((a, b) => {
             // 1. Factory Default is always top
@@ -34,10 +39,14 @@ export const SamplePackManager: React.FC<SamplePackManagerProps> = ({ onClose })
             if (a.id === currentSamplePackId) return -1;
             if (b.id === currentSamplePackId) return 1;
 
-            // 3. Alphabetical for the rest
+            // 3. Favorites next
+            if (a.isFavorite && !b.isFavorite) return -1;
+            if (!a.isFavorite && b.isFavorite) return 1;
+
+            // 4. Alphabetical for the rest
             return a.name.localeCompare(b.name);
         });
-    }, [samplePacks, searchTerm, currentSamplePackId]);
+    }, [samplePacks, searchTerm, currentSamplePackId, showOnlyFavorites]);
 
     const handleAdd = async () => {
         if (!newName || !newUrl) return;
@@ -117,20 +126,32 @@ export const SamplePackManager: React.FC<SamplePackManagerProps> = ({ onClose })
                     <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors p-1"><X size={20} /></button>
                 </div>
 
-                <div className="px-4 py-2.5 bg-black/40 border-b border-white/5 flex items-center gap-3">
-                    <Search size={14} className="text-zinc-600" />
-                    <input
-                        type="search"
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                        placeholder="SEARCH SAMPLES..."
-                        className="bg-transparent border-none outline-none text-[10px] text-zinc-300 w-full placeholder:text-zinc-700 font-black uppercase tracking-widest"
-                    />
-                    {searchTerm && (
-                        <button onClick={() => setSearchTerm('')} className="p-1 hover:text-white text-zinc-600 transition-colors">
-                            <X size={12} />
+                <div className="px-4 py-2 border-b border-white/5 flex items-center justify-between gap-4">
+                    <div className="flex-1 flex items-center gap-3">
+                        <Search size={14} className="text-zinc-600" />
+                        <input
+                            type="search"
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                            placeholder="SEARCH SAMPLES..."
+                            className="bg-transparent border-none outline-none text-[10px] text-zinc-300 w-full placeholder:text-zinc-700 font-black uppercase tracking-widest"
+                        />
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={() => setShowOnlyFavorites(!showOnlyFavorites)}
+                            className={`p-2 rounded-lg transition-all ${showOnlyFavorites ? 'bg-yellow-500/20 text-yellow-500' : 'text-zinc-600 hover:text-zinc-400'}`}
+                            title="Filter Favorites"
+                        >
+                            <Star size={14} fill={showOnlyFavorites ? "currentColor" : "none"} />
                         </button>
-                    )}
+                        {searchTerm && (
+                            <button onClick={() => setSearchTerm('')} className="p-2 hover:text-white text-zinc-600 transition-colors">
+                                <X size={12} />
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 space-y-2">
@@ -200,11 +221,17 @@ export const SamplePackManager: React.FC<SamplePackManagerProps> = ({ onClose })
                                         </div>
                                         <div className="text-[8px] text-zinc-600 truncate mt-0.5 font-mono">{pack.url}</div>
                                     </div>
-                                    <div className="flex items-center gap-1">
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => toggleFavoritePack(pack.id)}
+                                            className={`p-1.5 transition-colors ${pack.isFavorite ? 'text-yellow-500' : 'text-zinc-600 hover:text-zinc-400'}`}
+                                        >
+                                            <Star size={14} fill={pack.isFavorite ? "currentColor" : "none"} />
+                                        </button>
+
                                         {currentSamplePackId === pack.id ? (
-                                            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-retro-accent/20 border border-retro-accent/30 rounded-lg text-retro-accent text-[9px] font-extrabold uppercase">
-                                                <Check size={10} />
-                                                Active
+                                            <div className="w-8 h-8 flex items-center justify-center bg-retro-accent/20 border border-retro-accent/30 rounded-lg text-retro-accent shadow-[0_0_10px_rgba(255,30,86,0.2)]">
+                                                <Check size={14} strokeWidth={3} />
                                             </div>
                                         ) : (
                                             <button
@@ -212,9 +239,10 @@ export const SamplePackManager: React.FC<SamplePackManagerProps> = ({ onClose })
                                                     await loadSamplePack(pack.id);
                                                     onClose();
                                                 }}
-                                                className="px-2.5 py-1.5 bg-zinc-700 hover:bg-white hover:text-black transition-all rounded-lg text-[9px] font-extrabold uppercase text-white shadow-lg active:scale-95"
+                                                className="w-8 h-8 flex items-center justify-center bg-zinc-700 hover:bg-white hover:text-black transition-all rounded-lg text-white shadow-lg active:scale-90"
+                                                title="Load Pack"
                                             >
-                                                Switch
+                                                <RefreshCw size={14} strokeWidth={3} />
                                             </button>
                                         )}
                                         <div className="w-px h-3 bg-white/10 mx-1" />

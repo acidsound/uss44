@@ -98,4 +98,5 @@ export interface SamplePack {
   name: string;
   url: string;
   isDefault?: boolean;
+  isFavorite?: boolean;
 }

@@ -22,6 +22,7 @@
 | [PadMenu](#padmenu) | `PadMenu.tsx` | 패드 컨텍스트 메뉴 |
 | [RecordingModal](#recordingmodal) | `RecordingModal.tsx` | 프로 레코딩 모달 |
 | [SequencePanel](#sequencepanel) | `SequencePanel.tsx` | 시퀀스 모드 편집 패널 |
+| [SamplePackManager](#samplepackmanager) | `SamplePackManager.tsx` | 샘플 팩 라이브러리 관리 |
 | [Visualizer](#visualizer) | `Visualizer.tsx` | 오디오 시각화 |
 | [LoadingOverlay](#loadingoverlay) | `LoadingOverlay.tsx` | 로딩 오버레이 |
 | [InitOverlay](#initoverlay) | `InitOverlay.tsx` | 앱 초기화 오버레이 |
@@ -333,6 +334,35 @@ interface SampleBrowserProps {
 
 - `WaveformThumbnail`: 샘플 미리보기 파형
 - `SampleItem`: 개별 샘플 아이템
+
+---
+
+## 📚 SamplePackManager
+
+샘플 팩(JSON) 목록을 관리하고 즐겨찾기를 설정합니다.
+
+### 위치
+```
+components/SamplePackManager.tsx
+```
+
+### Props
+
+```typescript
+interface SamplePackManagerProps {
+  onClose: () => void;
+}
+```
+
+### 주요 기능
+
+| 기능 | 설명 |
+|------|------|
+| 팩 전환 | `RefreshCw` 아이콘으로 활성 팩 변경 |
+| 즐겨찾기 | `Star` 아이콘으로 팩 고정 및 필터링 |
+| 검색/필터 | 이름/URL 검색 및 즐겨찾기 필터 제공 |
+| CRUD | 팩 추가, 수정, 삭제 기능 |
+| 복구 | 팩 리스트 JSON 내보내기/가져오기 |
 
 ---
 
