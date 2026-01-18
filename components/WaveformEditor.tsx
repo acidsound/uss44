@@ -11,7 +11,7 @@ interface WaveformEditorProps {
 }
 
 export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMode = false }) => {
-  const { currentChannel, selectedPadId, pads, samples, updatePad, setAppMode, setRecordingModalOpen } = usePadStore();
+  const { currentChannel, selectedPadId, pads, samples, updatePad, stopPad, setAppMode, setRecordingModalOpen } = usePadStore();
   const { audioContext, micAnalyser, isRecording } = useAudioStore();
   const { setBpm } = useSequencerStore();
   const selectedPadIndex = parseInt(selectedPadId.split('-')[1]);
@@ -456,6 +456,9 @@ export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMod
   };
 
   const setTriggerMode = (mode: TriggerMode) => {
+    if (activePad?.triggerMode === 'ONE_SHOT' && mode !== 'ONE_SHOT') {
+      stopPad(selectedPadIndex);
+    }
     updatePad(selectedPadIndex, { triggerMode: mode });
   };
 
@@ -513,20 +516,20 @@ export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMod
 
               <div id="trigger-mode-selectors" className="flex items-stretch border-r border-zinc-800 bg-black/20">
                 <button
-                  id="mode-gate"
-                  onClick={() => setTriggerMode('GATE')}
-                  className={`px-1 flex items-center gap-1 text-[7px] font-bold uppercase transition-colors ${activePad?.triggerMode === 'GATE' ? 'text-retro-accent bg-retro-accent/10' : 'text-zinc-500 hover:text-zinc-300'}`}
-                  title="Gate Mode"
-                >
-                  <Hand size={10} /> Gate
-                </button>
-                <button
                   id="mode-oneshot"
                   onClick={() => setTriggerMode('ONE_SHOT')}
-                  className={`px-1 flex items-center gap-1 text-[7px] font-bold uppercase transition-colors border-l border-zinc-800/50 ${activePad?.triggerMode === 'ONE_SHOT' ? 'text-retro-accent bg-retro-accent/10' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  className={`px-1 flex items-center gap-1 text-[7px] font-bold uppercase transition-colors ${activePad?.triggerMode === 'ONE_SHOT' ? 'text-retro-accent bg-retro-accent/10' : 'text-zinc-500 hover:text-zinc-300'}`}
                   title="One-shot Mode"
                 >
                   <PlayCircle size={10} /> Oneshot
+                </button>
+                <button
+                  id="mode-gate"
+                  onClick={() => setTriggerMode('GATE')}
+                  className={`px-1 flex items-center gap-1 text-[7px] font-bold uppercase transition-colors border-l border-zinc-800/50 ${activePad?.triggerMode === 'GATE' ? 'text-retro-accent bg-retro-accent/10' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  title="Gate Mode"
+                >
+                  <Hand size={10} /> Gate
                 </button>
                 <button
                   id="mode-loop"
