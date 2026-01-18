@@ -1,22 +1,21 @@
 
+
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { Play, Mic2, Search, X, Library, Globe, Music, Upload, Square, HardDrive, Loader2, Mic, ChevronLeft } from 'lucide-react';
-import { usePadStore, generateWaveform } from '../stores/padStore';
+import { usePadStore } from '../stores/padStore';
 import { useAudioStore } from '../stores/audioStore';
 import { SampleMetadata } from '../types';
-import { MOCK_SOCIAL_FEED } from '../constants';
 import { dbService } from '../services/dbService';
 import { RecordingModal } from './RecordingModal';
 import { SamplePackManager } from './SamplePackManager';
 import { DigNetwork } from './DigNetwork';
 import { Settings } from 'lucide-react';
+import { detectBPM, generateWaveform } from '../utils/audioUtils';
 
 interface SampleBrowserProps {
   onClose: () => void;
   isLandscape: boolean;
 }
-
-import { detectBPM } from '../utils/audioUtils';
 
 const WaveformThumbnail: React.FC<{ buffer?: AudioBuffer; waveform?: number[]; className?: string; color?: string }> = ({
   buffer,
@@ -217,13 +216,8 @@ export const SampleBrowser: React.FC<SampleBrowserProps> = ({ onClose, isLandsca
     });
   }, [sampleLibrary, searchQuery, selectedBank]);
 
-  const visibleLibrary = useMemo(() => allFilteredLibrary.slice(0, visibleCount), [allFilteredLibrary, visibleCount]);
 
-  const filteredDigItems = useMemo(() => {
-    return MOCK_SOCIAL_FEED.filter(item =>
-      item.title.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [searchQuery]);
+  const visibleLibrary = useMemo(() => allFilteredLibrary.slice(0, visibleCount), [allFilteredLibrary, visibleCount]);
 
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {

@@ -1,9 +1,11 @@
 
+
 import { create } from 'zustand';
 import { Pad, ChannelId, Envelope, SampleMetadata, TriggerMode } from '../types';
 import { useAudioStore } from './audioStore';
 import { PAD_COLORS, SAMPLE_SET_URL } from '../constants';
 import { dbService } from '../services/dbService';
+import { generateWaveform } from '../utils/audioUtils';
 
 interface PadState {
   pads: Record<string, Pad>;
@@ -46,22 +48,8 @@ interface PadState {
   executeClone: (targetPadIndex: number) => void;
 }
 
-const DEFAULT_ENVELOPE: Envelope = { attack: 0.001, decay: 0.1, sustain: 1, release: 0.05 };
 
-export const generateWaveform = (buffer: AudioBuffer, points: number = 200): number[] => {
-  const data = buffer.getChannelData(0);
-  const step = Math.ceil(data.length / points);
-  const waveform: number[] = [];
-  for (let i = 0; i < points; i++) {
-    let max = 0;
-    for (let j = 0; j < step; j++) {
-      const datum = Math.abs(data[i * step + j] || 0);
-      if (datum > max) max = datum;
-    }
-    waveform.push(max);
-  }
-  return waveform;
-};
+const DEFAULT_ENVELOPE: Envelope = { attack: 0.001, decay: 0.1, sustain: 1, release: 0.05 };
 
 const createBasePads = () => {
   const pads: Record<string, Pad> = {};

@@ -12,9 +12,10 @@ import {
 import { parseUrl, getPlatformColor, getPlatformName, SocialPlatform, ParsedUrl } from '../utils/urlParser';
 import { createDigPreview, DigPreviewItem } from '../services/oembedService';
 import { extractAudio, ExtractionProgress, checkBackendHealth, searchVideos, SearchResult } from '../services/digService';
-import { usePadStore, generateWaveform } from '../stores/padStore';
+import { usePadStore } from '../stores/padStore';
 import { useAudioStore } from '../stores/audioStore';
 import { dbService } from '../services/dbService';
+import { generateWaveform } from '../utils/audioUtils';
 
 interface DigNetworkProps {
     targetPadIndex: number;

@@ -24,38 +24,42 @@ Social Sampler is a web-based MPC-style sampler designed for real-time audio per
 ## 2. Architecture Overview
 The codebase is structured to decouple UI from business logic and audio processing.
 
+
 ```
-src/
-├── audio/          # Audio processing utilities
-│   ├── audioUtils.ts      # autoCropSample, generateSlices
-│   ├── sampleCache.ts     # IndexedDB persistence (social-sampler-db)
-│   ├── initSamples.ts     # Initial sample loading/restoration logic
-│   ├── wavExport.ts       # WAV file encoding and export
-│   ├── videoExtractor.ts  # ffmpeg.wasm logic for video to audio
-│   └── youtubeExtractor.ts # YouTube URL extraction (via backend)
-├── stores/         # Zustand state management
-│   ├── audioStore.ts      # AudioContext lifecycle, Worklet reference
-│   ├── padStore.ts        # 64 pads (4 channels × 16), configuration
-│   ├── sampleStore.ts     # In-memory sample library
-│   ├── patternStore.ts    # 8 patterns × 16 tracks × 16 steps
-│   ├── transportStore.ts  # BPM, playback state, sequencer mode
-│   └── effectsStore.ts    # Global delay/reverb parameters
-├── types/          # TypeScript definitions
-│   ├── audio.ts           # PadConfig, Sample, ADSREnvelope
-│   ├── sequencer.ts       # Pattern, Step, TransportState
-│   └── ui.ts              # ChannelId, PAD_KEYBOARD_MAP
-├── ui/components/  # Modular React components
-│   ├── Header.tsx         # Global LCD status, BPM, Mode
-│   ├── PadGrid.tsx        # 4×4 grid with touch/drag-drop support
-│   ├── Pad.tsx            # Individual pad with visual feedback
-│   ├── Waveform.tsx       # Canvas-based waveform with start/end handles
-│   ├── StepSequencer.tsx  # 16-step grid for pattern composition
-│   ├── Knob.tsx           # Reusable rotary control for parameters
-│   └── MasterEffects.tsx  # Global effect control panel
-└── App.tsx         # Main entry, keyboard handling, sequencer scheduler
-public/
-└── worklets/
-    └── VoiceProcessor.js  # High-performance AudioWorklet for playback
+/Users/spectrum/Documents/works/_MW/uss44/
+├── components/         # React UI components
+│   ├── BpmModal.tsx         # BPM and tempo control modal
+│   ├── DigNetwork.tsx       # Social media audio extraction
+│   ├── FileExplorer.tsx     # File browser and library manager
+│   ├── InitOverlay.tsx      # Initial app loading overlay
+│   ├── Knob.tsx             # Reusable rotary control
+│   ├── LoadingOverlay.tsx   # Loading state indicator
+│   ├── PadGrid.tsx          # 4×4 pad grid with touch support
+│   ├── PadMenu.tsx          # Pad context menu
+│   ├── ParametersPanel.tsx  # Chop & Control modes
+│   ├── RecordingModal.tsx   # Pro Rec interface
+│   ├── RenameModal.tsx      # Sample/pad naming
+│   ├── SampleBrowser.tsx    # Sample library browser
+│   ├── SamplePackManager.tsx # Sample pack management
+│   ├── SequencePanel.tsx    # Step sequencer editor
+│   ├── SettingsMenu.tsx     # App settings
+│   ├── Visualizer.tsx       # Audio visualizer
+│   └── WaveformEditor.tsx   # Waveform editing with chop points
+├── stores/            # Zustand state management
+│   ├── audioStore.ts       # AudioContext lifecycle, Worklet reference
+│   ├── padStore.ts         # 64 pads (4 channels × 16), configuration
+│   └── sequencerStore.ts   # Patterns, BPM, playback state
+├── services/          # Business logic services
+│   ├── dbService.ts        # IndexedDB persistence layer
+│   ├── digService.ts       # Backend audio extraction API
+│   ├── oembedService.ts    # oEmbed metadata fetching
+│   └── projectService.ts   # Project import/export/library
+├── utils/             # Utility functions
+│   ├── audioUtils.ts       # BPM detection, waveform generation
+│   └── urlParser.ts        # Social media URL parsing
+├── types.ts           # TypeScript type definitions
+├── constants.ts       # App-wide constants
+└── App.tsx            # Main entry, keyboard handling, sequencer
 ```
 
 ---

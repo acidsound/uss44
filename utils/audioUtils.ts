@@ -1,4 +1,5 @@
 
+
 /**
  * Precise BPM detection using Autocorrelation on Energy Envelope.
  * This approach is more musically natural as it looks for periodicities 
@@ -89,3 +90,27 @@ export const calculateLoopBPM = (duration: number): number | null => {
     return Math.round(bpm * 10) / 10;
 };
 
+/**
+ * Generates a waveform visualization array from an AudioBuffer.
+ * Uses peak detection to capture the envelope for visual representation.
+ * 
+ * @param buffer - The AudioBuffer to visualize
+ * @param points - Number of points in the output waveform array (default: 200)
+ * @returns Array of peak amplitude values (0-1 range)
+ */
+export const generateWaveform = (buffer: AudioBuffer, points: number = 200): number[] => {
+    const data = buffer.getChannelData(0);
+    const step = Math.ceil(data.length / points);
+    const waveform: number[] = [];
+
+    for (let i = 0; i < points; i++) {
+        let max = 0;
+        for (let j = 0; j < step; j++) {
+            const datum = Math.abs(data[i * step + j] || 0);
+            if (datum > max) max = datum;
+        }
+        waveform.push(max);
+    }
+
+    return waveform;
+};
