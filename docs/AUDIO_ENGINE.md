@@ -379,14 +379,22 @@ timerRef.current = requestAnimationFrame(scheduler);
 // 특히 파라미터 업데이트 시
 ```
 
-### 4. Web Worker 고려
+### 4. 파형 처리 최적화 (향후 고려사항)
 
-무거운 파형 처리는 Web Worker로 오프로드 가능:
+> ⚠️ **현재 상태**: 파형 처리(`generateWaveform`, `detectBPM`)는 메인 스레드에서 실행됩니다.
+
+향후 큰 샘플 처리 시 UI 블로킹을 방지하려면 Web Worker로 오프로드 고려:
 
 ```typescript
-// 파형 생성을 메인 스레드에서 분리
+// 현재 구현 (메인 스레드)
+const waveform = generateWaveform(buffer);  // 블로킹
+
+// 향후 개선안 (Web Worker)
 const worker = new Worker('waveform-worker.js');
 worker.postMessage({ buffer: audioData });
+worker.onmessage = (e) => {
+  const waveform = e.data.waveform;
+};
 ```
 
 ---
