@@ -20,17 +20,17 @@ export const ParametersPanel: React.FC<ParametersPanelProps> = ({ isLandscape, i
   const activePad = pads[`${currentChannel}-${selectedPadIndex}`];
 
   const handleRenameSave = (newName: string) => {
-    if (activePad?.sampleId) {
-      updateSampleName(activePad.sampleId, newName);
+    if (activePad) {
+      updatePad(selectedPadIndex, { name: newName });
     }
   };
 
   return (
     <div id="parameters-panel" className="flex flex-col h-full overflow-hidden relative">
       {/* Rename Modal */}
-      {showRenameModal && activePad && activePad.sampleId && (
+      {showRenameModal && activePad && (
         <RenameModal
-          initialName={samples[activePad.sampleId]?.name || ''}
+          initialName={activePad.name || (activePad.sampleId ? samples[activePad.sampleId]?.name : '') || ''}
           onSave={handleRenameSave}
           onClose={() => setShowRenameModal(false)}
         />
@@ -73,7 +73,7 @@ export const ParametersPanel: React.FC<ParametersPanelProps> = ({ isLandscape, i
             <span
               className="text-[11px] font-bold text-white w-28 uppercase truncate text-left group-hover:text-retro-accent transition-colors block"
             >
-              {(activePad?.sampleId ? samples[activePad.sampleId]?.name : null) || 'EMPTY'}
+              {activePad?.name || (activePad?.sampleId ? samples[activePad.sampleId]?.name : null) || 'EMPTY'}
             </span>
           </button>
         )}

@@ -459,7 +459,18 @@ export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMod
     updatePad(selectedPadIndex, { triggerMode: mode });
   };
 
-  if (!isUltraSampleMode && !activePad?.sampleId && !storedWaveform) return <div id="waveform-empty-state" className="h-full w-full flex items-center justify-center bg-black"><span className="text-zinc-600 text-[9px] uppercase font-bold tracking-widest">Idle Buffer</span></div>;
+  if (!isUltraSampleMode && !activePad?.sampleId && !storedWaveform) {
+    return (
+      <div id="waveform-empty-state" className="h-full w-full min-h-32 flex flex-col items-center justify-center bg-black/60 gap-3 border-2 border-dashed border-white/5 mx-2 my-2 rounded-2xl">
+        <div className="w-12 h-12 rounded-full bg-zinc-900 flex items-center justify-center border border-white/5 opacity-40">
+          <Scissors size={20} className="text-zinc-600" />
+        </div>
+        <span className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] animate-pulse">
+          Idle Buffer / Load Sample
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div id="waveform-editor" className="h-full flex flex-col min-h-32 bg-black">

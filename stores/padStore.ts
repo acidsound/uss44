@@ -61,6 +61,7 @@ const createBasePads = () => {
         id: `pad-${i}`,
         channelId: channel,
         sampleId: null,
+        name: undefined,
         volume: 1.0,
         pitch: 1.0,
         pan: 0,
@@ -353,6 +354,7 @@ export const usePadStore = create<PadState>((set, get) => ({
       const updatedPad: Pad = {
         ...pads[id],
         sampleId,
+        name: name,
         buffer: audioBuffer,
         start: 0,
         end: 1,
@@ -528,6 +530,7 @@ export const usePadStore = create<PadState>((set, get) => ({
     // Note: updatePad already handles persistence and worklet updates
     updatePad(targetPadIndex, {
       sampleId: sourcePad.sampleId,
+      name: sourcePad.name,
       buffer: sourcePad.buffer,
       volume: sourcePad.volume,
       pitch: sourcePad.pitch,
@@ -540,9 +543,6 @@ export const usePadStore = create<PadState>((set, get) => ({
       viewEnd: sourcePad.viewEnd,
       envelope: { ...sourcePad.envelope },
       triggerMode: sourcePad.triggerMode,
-      // Keep target pad's original color if preferred, or copy? User said "clone pad", usually means everything.
-      // Keeping original color might be better for grid identification, but user said " 그대로 복사".
-      // Let's copy color too.
       color: sourcePad.color,
     });
 

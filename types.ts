@@ -30,6 +30,7 @@ export interface Pad {
   id: string; // 'pad-0' to 'pad-15' (visual index)
   channelId: ChannelId;
   sampleId: string | null;
+  name?: string;
 
   // Parameters
   volume: number;      // 0-2

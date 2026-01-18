@@ -337,6 +337,7 @@ export const DigNetwork: React.FC<DigNetworkProps> = ({ targetPadIndex, onClose 
                     loadSampleToWorklet(sampleId, audioBuffer);
                     updatePad(targetPadIndex, {
                         sampleId,
+                        name: sampleName,
                         buffer: audioBuffer,
                         start: 0,
                         end: 1,
@@ -426,6 +427,7 @@ export const DigNetwork: React.FC<DigNetworkProps> = ({ targetPadIndex, onClose 
 
                 updatePad(targetPadIndex, {
                     sampleId,
+                    name: sampleName,
                     buffer: audioBuffer,
                     start: 0,
                     end: 1,

@@ -401,9 +401,9 @@ export const PadGrid: React.FC<PadGridProps> = ({
                   {isSequenceMode ? idx + 1 : `PAD ${idx + 1}`}
                 </span>
 
-                {!isSequenceMode && pad?.sampleId && samples[pad.sampleId]?.name && (
+                {!isSequenceMode && (pad?.name || (pad?.sampleId && samples[pad.sampleId]?.name)) && (
                   <span className={`text-[9px] font-extrabold truncate max-w-[95%] uppercase leading-none drop-shadow-md ${isUltraSampleMode ? 'text-retro-accent' : 'text-white'}`}>
-                    {samples[pad.sampleId].name}
+                    {pad?.name || (pad?.sampleId ? samples[pad.sampleId].name : '')}
                   </span>
                 )}
 

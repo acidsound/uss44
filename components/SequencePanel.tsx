@@ -14,7 +14,7 @@ export const SequencePanel: React.FC = () => {
   const activePattern = patterns[`${currentChannel}-${selectedPadIndex}`];
   const activeStepData = activePattern ? activePattern[selectedStepIndex] : null;
 
-  const sampleName = activePad?.sampleId ? samples[activePad.sampleId]?.name : null;
+  const sampleName = activePad?.name || (activePad?.sampleId ? samples[activePad.sampleId]?.name : null);
 
   return (
     <div id="sequence-panel" className="flex flex-col h-full overflow-hidden">

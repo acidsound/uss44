@@ -246,6 +246,7 @@ export const SampleBrowser: React.FC<SampleBrowserProps> = ({ onClose, isLandsca
 
       updatePad(targetPadIndex, {
         sampleId,
+        name: sampleName,
         buffer: audioBuffer,
         start: 0,
         end: 1,
@@ -285,6 +286,7 @@ export const SampleBrowser: React.FC<SampleBrowserProps> = ({ onClose, isLandsca
     loadSampleToWorklet(sampleId, buffer);
     updatePad(targetPadIndex, {
       sampleId,
+      name: name,
       buffer,
       start: startPos,
       end: endPos,

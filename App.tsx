@@ -585,7 +585,7 @@ const App: React.FC = () => {
       {/* Footer / Bottom Panel (Independent from Main) */}
       <footer id="app-footer"
         className={`
-             ${isLandscape ? 'w-1/2 border-l h-full' : 'flex-none w-full border-t min-h-32 max-h-64'} 
+             ${isLandscape ? 'w-1/2 border-l h-full' : 'flex-none w-full border-t h-52'} 
              bg-retro-panel border-zinc-800/80 flex flex-col shadow-2xl z-20 overflow-hidden relative
            `}
       >
