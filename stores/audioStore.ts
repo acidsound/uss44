@@ -23,6 +23,7 @@ interface AudioState {
   removeSampleFromWorklet: (id: string) => void;
   triggerPad: (data: any) => void;
   stopPad: (padId: string, startTime?: number) => void;
+  stopPadExplicit: (padId: string) => void;
   updatePadStartEnd: (padId: string, start: number, end: number) => void;
   updatePadParams: (padId: string, params: { cutoff?: number, resonance?: number, pitch?: number, volume?: number, pan?: number, mute?: boolean }) => void;
   stopAll: () => void;
@@ -156,6 +157,16 @@ export const useAudioStore = create<AudioState>((set, get) => ({
       workletNode.port.postMessage({
         type: 'RELEASE_PAD',
         data: { padId, startTime }
+      });
+    }
+  },
+
+  stopPadExplicit: (padId: string) => {
+    const { workletNode } = get();
+    if (workletNode) {
+      workletNode.port.postMessage({
+        type: 'STOP_PAD',
+        data: { padId }
       });
     }
   },

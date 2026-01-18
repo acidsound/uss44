@@ -11,7 +11,7 @@ interface WaveformEditorProps {
 }
 
 export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMode = false }) => {
-  const { currentChannel, selectedPadId, pads, samples, updatePad, stopPad, setAppMode, setRecordingModalOpen } = usePadStore();
+  const { currentChannel, selectedPadId, pads, samples, updatePad, stopPadExplicit, setAppMode, setRecordingModalOpen } = usePadStore();
   const { audioContext, micAnalyser, isRecording } = useAudioStore();
   const { setBpm } = useSequencerStore();
   const selectedPadIndex = parseInt(selectedPadId.split('-')[1]);
@@ -456,9 +456,8 @@ export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMod
   };
 
   const setTriggerMode = (mode: TriggerMode) => {
-    if (activePad?.triggerMode === 'ONE_SHOT' && mode !== 'ONE_SHOT') {
-      stopPad(selectedPadIndex);
-    }
+    // Force stop all voices and clear UI state when switching trigger modes
+    stopPadExplicit(selectedPadIndex);
     updatePad(selectedPadIndex, { triggerMode: mode });
   };
 

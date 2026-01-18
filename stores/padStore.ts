@@ -23,6 +23,7 @@ interface PadState {
   loadSample: (index: number, url: string, name: string) => Promise<void>;
   triggerPad: (index: number, velocity?: number, pitchOverrideMultiplier?: number, startTime?: number, channelId?: ChannelId) => void;
   stopPad: (index: number, startTime?: number, channelId?: ChannelId) => void;
+  stopPadExplicit: (index: number, channelId?: ChannelId) => void;
   toggleMute: (index: number) => void;
   toggleSolo: (index: number) => void;
   syncMuteStates: () => void;
@@ -450,6 +451,28 @@ export const usePadStore = create<PadState>((set, get) => ({
       }));
     }
     useAudioStore.getState().stopPad(id, startTime);
+  },
+
+  stopPadExplicit: (index: number, channelId?: ChannelId) => {
+    const { pads, currentChannel } = get();
+    const effectiveChannel = channelId || currentChannel;
+    const id = `${effectiveChannel}-${index}`;
+    const pad = pads[id];
+    if (pad) {
+      set(state => ({
+        pads: {
+          ...state.pads,
+          [id]: {
+            ...pad,
+            isHeld: false,
+            lastTriggerTime: undefined,
+            lastTriggerDuration: undefined,
+            lastStopTime: undefined
+          }
+        }
+      }));
+    }
+    useAudioStore.getState().stopPadExplicit(id);
   },
 
   loadSamplePack: async (packId) => {

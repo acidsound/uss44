@@ -23,6 +23,9 @@ class VoiceProcessor extends AudioWorkletProcessor {
         case 'RELEASE_PAD':
           this.releaseVoice(data.padId, data.startTime);
           break;
+        case 'STOP_PAD':
+          this.stopPadVoices(data.padId, data.startTime);
+          break;
         case 'UPDATE_PAD_START_END':
           this.updateVoiceBoundaries(data);
           break;
@@ -107,16 +110,13 @@ class VoiceProcessor extends AudioWorkletProcessor {
     // For GATE and LOOP modes, we enforce monophonic behavior per pad (Choke Group).
     // If a pad is re-triggered, the existing voice must stop with a very fast fade (5ms)
     // to avoid overlaps and digital clicks.
-    if (triggerMode === 'GATE' || triggerMode === 'LOOP') {
-      for (const voice of this.voices) {
-        if (voice.padId === padId && !voice.finished) {
-          voice.envelope.phase = 'release';
-          voice.envelope.releaseT = 0;
-          voice.envelope.release = 0.005; // 5ms forced release
-        }
+    // Every pad is monophonic (choke previous voice of same pad)
+    for (const voice of this.voices) {
+      if (voice.padId === padId && !voice.finished) {
+        voice.envelope.phase = 'release';
+        voice.envelope.releaseT = 0;
+        voice.envelope.release = 0.005; // 5ms forced release to avoid clicks
       }
-    } else {
-      this.releaseVoice(padId);
     }
 
     if (this.voices.length >= 32) {
@@ -175,9 +175,26 @@ class VoiceProcessor extends AudioWorkletProcessor {
 
     for (const voice of this.voices) {
       if (voice.padId === padId && !voice.finished && voice.envelope.phase !== 'release') {
+        // Standard release (e.g. key up) only affects GATE and LOOP
         if (voice.triggerMode === 'GATE' || voice.triggerMode === 'LOOP') {
           voice.releaseAtFrame = releaseAtFrame;
         }
+      }
+    }
+  }
+
+  stopPadVoices(padId, startTime) {
+    const sr = sampleRate || 44100;
+    const releaseAtFrame = startTime !== undefined ? Math.floor(startTime * sr) : currentFrame;
+
+    for (const voice of this.voices) {
+      if (voice.padId === padId && !voice.finished) {
+        // Forced release (STOP) affects all modes
+        voice.envelope.phase = 'release';
+        voice.envelope.releaseT = 0;
+        voice.envelope.release = 0.005; // Fast 5ms fade
+        voice.envelope.levelAtRelease = voice.envelope.levelAtRelease || 0.5;
+        voice.releaseAtFrame = undefined; // Process immediately
       }
     }
   }
