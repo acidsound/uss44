@@ -81,7 +81,7 @@ class ProjectService {
   }
 
   private serializeAll(): ProjectData {
-    const { patterns, bpm } = useSequencerStore.getState();
+    const { patterns, bpm, stepCount } = useSequencerStore.getState();
     const soundData = this.serializePadsAndSamples();
 
     return {
@@ -90,6 +90,7 @@ class ProjectService {
       pads: soundData.pads,
       samples: soundData.samples,
       patterns: patterns,
+      stepCount: stepCount,
       bpm: bpm
     };
   }
@@ -203,7 +204,8 @@ class ProjectService {
       data = this.serializePadsAndSamples();
       defaultName = 'Current_Sound';
     } else if (type === 'SEQUENCE') {
-      data = useSequencerStore.getState().patterns;
+      const { patterns, stepCount, bpm } = useSequencerStore.getState();
+      data = { patterns, stepCount, bpm };
       defaultName = 'Current_Sequence';
     } else if (type === 'SONG') {
       data = this.serializeAll();
@@ -251,8 +253,8 @@ class ProjectService {
     } else if (type === 'SOUND') {
       data = this.serializePadsAndSamples();
     } else if (type === 'SEQUENCE') {
-      const { patterns, bpm } = useSequencerStore.getState();
-      data = { patterns, bpm };
+      const { patterns, stepCount, bpm } = useSequencerStore.getState();
+      data = { patterns, stepCount, bpm };
     }
 
     await dbService.saveToLibrary(STORES[type], name, data);
@@ -265,9 +267,10 @@ class ProjectService {
     if (type === 'SONG') {
       await this.initAll();
       await this.deserializePadsAndSamples(data);
-      const { setPatterns, setBpm } = useSequencerStore.getState();
+      const { setPatterns, setBpm, setStepCount } = useSequencerStore.getState();
       setPatterns(data.patterns);
       setBpm(data.bpm);
+      if (data.stepCount) setStepCount(data.stepCount);
       await dbService.saveMetadata('bpm', data.bpm);
       for (const key in data.patterns) {
         await dbService.saveSequence(key, data.patterns[key]);
@@ -278,10 +281,11 @@ class ProjectService {
       resetPads();
       await this.deserializePadsAndSamples(data);
     } else if (type === 'SEQUENCE') {
-      const { resetSequencer, setPatterns, setBpm } = useSequencerStore.getState();
+      const { resetSequencer, setPatterns, setBpm, setStepCount } = useSequencerStore.getState();
       resetSequencer();
       setPatterns(data.patterns);
       setBpm(data.bpm);
+      if (data.stepCount) setStepCount(data.stepCount);
       await dbService.saveMetadata('bpm', data.bpm);
       await dbService.clearSequences();
       for (const key in data.patterns) {
@@ -313,9 +317,10 @@ class ProjectService {
     await this.initAll();
     await this.deserializePadsAndSamples({ pads: data.pads, samples: data.samples });
 
-    const { setPatterns, setBpm } = useSequencerStore.getState();
+    const { setPatterns, setBpm, setStepCount } = useSequencerStore.getState();
     setPatterns(data.patterns);
     setBpm(data.bpm);
+    if (data.stepCount) setStepCount(data.stepCount);
     await dbService.saveMetadata('bpm', data.bpm);
     for (const key in data.patterns) {
       await dbService.saveSequence(key, data.patterns[key]);
