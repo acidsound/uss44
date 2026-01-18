@@ -180,22 +180,21 @@ export const SampleBrowser: React.FC<SampleBrowserProps> = ({ onClose, isLandsca
   const [status, setStatus] = useState('');
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(24);
-  const [showRecModal, setShowRecModal] = useState(false);
   const [showPackManager, setShowPackManager] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const observerTarget = useRef<HTMLDivElement>(null);
 
-  const { selectedPadId, loadSample, sampleLibrary, updatePad, samplePacks, currentSamplePackId, loadSamplePack } = usePadStore();
+  const { selectedPadId, loadSample, sampleLibrary, updatePad, samplePacks, currentSamplePackId, loadSamplePack, setRecordingModalOpen } = usePadStore();
   const { audioContext, loadSampleToWorklet } = useAudioStore();
 
   const targetPadIndex = selectedPadId ? parseInt(selectedPadId.split('-')[1]) : 0;
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape' && !showRecModal) onClose(); };
+    const handleKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, showRecModal]);
+  }, [onClose]);
 
   const banks = useMemo(() => {
     const b = new Set<string>();
@@ -264,51 +263,10 @@ export const SampleBrowser: React.FC<SampleBrowserProps> = ({ onClose, isLandsca
     } catch (err) { }
   };
 
-  const handleSaveRecorded = async (buffer: AudioBuffer, name: string) => {
-    if (!audioContext) return;
-    const sampleId = `rec-${Date.now()}`;
-    const waveform = generateWaveform(buffer);
 
-    // Auto Crop Logic
-    const data = buffer.getChannelData(0);
-    const threshold = 0.02;
-    let startIdx = 0;
-    let endIdx = data.length - 1;
-    for (let i = 0; i < data.length; i++) { if (Math.abs(data[i]) > threshold) { startIdx = i; break; } }
-    for (let i = data.length - 1; i >= startIdx; i--) { if (Math.abs(data[i]) > threshold) { endIdx = i; break; } }
-
-    const padding = Math.floor(buffer.sampleRate * 0.03); // Increased to 30ms for safety
-    startIdx = Math.max(0, startIdx - padding);
-    endIdx = Math.min(data.length - 1, endIdx + padding);
-    const startPos = startIdx / data.length;
-    const endPos = endIdx / data.length;
-
-    loadSampleToWorklet(sampleId, buffer);
-    updatePad(targetPadIndex, {
-      sampleId,
-      name: name,
-      buffer,
-      start: startPos,
-      end: endPos,
-      viewStart: startPos,
-      viewEnd: endPos,
-      triggerMode: 'GATE'
-    });
-
-    // Update the centralized samples lookup
-    usePadStore.setState(state => ({
-      samples: { ...state.samples, [sampleId]: { name, waveform } }
-    }));
-
-    const arrayBuffer = data.buffer.slice(0);
-    await dbService.saveSample({ id: sampleId, name: name, data: arrayBuffer, waveform });
-    setShowRecModal(false);
-    onClose();
-  };
 
   return (
     <div id="sample-browser" className="absolute inset-0 bg-[#0a0a0c] z-50 flex flex-col overflow-hidden animate-in fade-in duration-300">
-      {showRecModal && <RecordingModal onClose={() => setShowRecModal(false)} onSave={handleSaveRecorded} />}
       <input id="sample-file-input" type="file" ref={fileInputRef} onChange={handleFileUpload} accept="audio/*" className="hidden" />
 
       {/* Top Navbar */}
@@ -399,7 +357,7 @@ export const SampleBrowser: React.FC<SampleBrowserProps> = ({ onClose, isLandsca
                 </button>
                 <button
                   id="action-pro-rec"
-                  onClick={() => setShowRecModal(true)}
+                  onClick={() => setRecordingModalOpen(true)}
                   className="bg-zinc-900/20 border border-dashed border-white/10 rounded-xl py-8 flex flex-col items-center justify-center gap-2 group hover:border-retro-accent/40 hover:bg-retro-accent/5 transition-all"
                 >
                   <Mic size={20} className="text-zinc-600 group-hover:text-retro-accent transition-colors" />

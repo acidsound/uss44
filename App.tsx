@@ -18,6 +18,7 @@ import { SequencePanel } from './components/SequencePanel';
 import { BpmModal } from './components/BpmModal';
 import { SettingsMenu } from './components/SettingsMenu';
 import { PadMenu } from './components/PadMenu';
+import { RecordingModal } from './components/RecordingModal';
 import { AppMode, ChannelId } from './types';
 import { STEPS_PER_BAR } from './constants';
 
@@ -29,7 +30,6 @@ const KEY_TO_PAD: Record<string, number> = {
 };
 
 const App: React.FC = () => {
-  const [mode, setMode] = useState<AppMode>(AppMode.PERFORM);
   const [isLandscape, setIsLandscape] = useState(window.innerWidth > window.innerHeight);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isUltraSampleMode, setIsUltraSampleMode] = useState(false);
@@ -39,7 +39,10 @@ const App: React.FC = () => {
   const [padMenuAnchor, setPadMenuAnchor] = useState<DOMRect | undefined>(undefined);
 
   const { initialize, resume, initialized, initMic, closeMic, startRecording, stopRecording, loadSampleToWorklet } = useAudioStore((state) => state);
-  const { initPads, currentChannel, setChannel, selectedPadId, selectPad, triggerPad, stopPad, updatePad, isHydrating } = usePadStore((state) => state);
+  const {
+    initPads, currentChannel, setChannel, selectedPadId, selectPad, triggerPad, stopPad, updatePad, isHydrating,
+    appMode, setAppMode, isRecordingModalOpen, setRecordingModalOpen, saveRecordedSample
+  } = usePadStore((state) => state);
   const { bpm, isPlaying, currentStep, setStep, togglePlay, toggleStep, setSelectedStepIndex, initSequencer } = useSequencerStore((state) => state);
 
   const selectedPadIndex = parseInt(selectedPadId.split('-').pop() || '0');
@@ -149,8 +152,8 @@ const App: React.FC = () => {
           return;
         }
 
-        if (mode === AppMode.SEQUENCE) {
-          // Keyboard shortcuts disabled in Sequence mode per user request
+        if (appMode === AppMode.SEQUENCE) {
+          // Keyboard shortcuts disabled in Sequence appMode per user request
           return;
         } else if (isEditMode) {
           selectPad(padIdx);
@@ -173,7 +176,7 @@ const App: React.FC = () => {
           return;
         }
 
-        if (mode !== AppMode.SEQUENCE && !isEditMode) {
+        if (appMode !== AppMode.SEQUENCE && !isEditMode) {
           stopPad(padIdx);
         }
       }
@@ -185,7 +188,7 @@ const App: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [mode, currentChannel, selectedPadIndex, togglePlay, selectPad, triggerPad, stopPad, toggleStep, setSelectedStepIndex, isUltraSampleMode, isEditMode, handleUltraRecordStart, handleUltraRecordStop]);
+  }, [appMode, currentChannel, selectedPadIndex, togglePlay, selectPad, triggerPad, stopPad, toggleStep, setSelectedStepIndex, isUltraSampleMode, isEditMode, handleUltraRecordStart, handleUltraRecordStop]);
 
   useEffect(() => {
     const startApp = async () => {
@@ -237,7 +240,7 @@ const App: React.FC = () => {
     } else {
       await initMic();
       setIsUltraSampleMode(true);
-      setMode(AppMode.PERFORM);
+      setAppMode(AppMode.PERFORM);
     }
   };
 
@@ -353,10 +356,10 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {mode === AppMode.SAMPLE && (
+      {appMode === AppMode.SAMPLE && (
         <SampleBrowser
           isLandscape={isLandscape}
-          onClose={() => setMode(AppMode.PERFORM)}
+          onClose={() => setAppMode(AppMode.PERFORM)}
         />
       )}
 
@@ -379,20 +382,20 @@ const App: React.FC = () => {
               </button>
 
               {/* Mode Selector Buttons (Landscape) */}
-              <div id="mode-selector-landscape" className="flex flex-col items-center gap-1 mt-4">
+              <div id="appMode-selector-landscape" className="flex flex-col items-center gap-1 mt-4">
                 <button
-                  id="mode-dig-btn-l"
-                  onClick={() => setMode(AppMode.SAMPLE)}
-                  className={`w-10 h-8 flex items-center justify-center text-[7px] font-extrabold uppercase transition-all tracking-wider rounded ${mode === AppMode.SAMPLE ? 'bg-retro-accent text-white' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'}`}
+                  id="appMode-dig-btn-l"
+                  onClick={() => setAppMode(AppMode.SAMPLE)}
+                  className={`w-10 h-8 flex items-center justify-center text-[7px] font-extrabold uppercase transition-all tracking-wider rounded ${appMode === AppMode.SAMPLE ? 'bg-retro-accent text-white' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'}`}
                   title="Dig Library"
                 >
                   DIG
                 </button>
                 <button
-                  id="mode-perform-btn-l"
+                  id="appMode-perform-btn-l"
                   onClick={() => {
                     setIsEditMode(!isEditMode);
-                    if (mode === AppMode.SAMPLE) setMode(AppMode.PERFORM);
+                    if (appMode === AppMode.SAMPLE) setAppMode(AppMode.PERFORM);
                   }}
                   className={`w-10 h-8 flex items-center justify-center text-[7px] font-extrabold uppercase transition-all tracking-wider rounded ${!isEditMode ? 'bg-zinc-800/80 text-white' : 'bg-retro-accent text-white shadow-inner'}`}
                   title={isEditMode ? 'Edit Mode' : 'Perform Mode'}
@@ -400,13 +403,13 @@ const App: React.FC = () => {
                   {isEditMode ? 'EDIT' : 'PERF'}
                 </button>
                 <button
-                  id="mode-sequence-btn-l"
-                  onClick={() => setMode(mode === AppMode.SEQUENCE ? AppMode.PERFORM : AppMode.SEQUENCE)}
-                  className={`w-10 h-8 flex flex-col items-center justify-center transition-all rounded ${mode === AppMode.SEQUENCE ? 'bg-retro-accent text-white shadow-lg' : 'bg-black/20 text-zinc-500 hover:text-zinc-300'}`}
+                  id="appMode-sequence-btn-l"
+                  onClick={() => setAppMode(appMode === AppMode.SEQUENCE ? AppMode.PERFORM : AppMode.SEQUENCE)}
+                  className={`w-10 h-8 flex flex-col items-center justify-center transition-all rounded ${appMode === AppMode.SEQUENCE ? 'bg-retro-accent text-white shadow-lg' : 'bg-black/20 text-zinc-500 hover:text-zinc-300'}`}
                   title="Sequence Mode"
                 >
                   <span className="text-[6px] uppercase font-extrabold tracking-tighter">SEQ</span>
-                  <span className={`text-[8px] font-extrabold ${mode === AppMode.SEQUENCE ? 'text-white' : 'text-retro-accent'}`}>{currentStep > -1 ? currentStep + 1 : '--'}</span>
+                  <span className={`text-[8px] font-extrabold ${appMode === AppMode.SEQUENCE ? 'text-white' : 'text-retro-accent'}`}>{currentStep > -1 ? currentStep + 1 : '--'}</span>
                 </button>
                 <button
                   id="transport-play-btn-l"
@@ -529,20 +532,20 @@ const App: React.FC = () => {
 
         {/* Mode Selector - Now Part of Header (Secondary Row) */}
         {!isLandscape && (
-          <div id="mode-selector" className="flex-none h-6 border-t border-zinc-800/50 flex items-stretch bg-zinc-900/30">
+          <div id="appMode-selector" className="flex-none h-6 border-t border-zinc-800/50 flex items-stretch bg-zinc-900/30">
             <div className="flex-1 flex items-stretch border-r border-zinc-800/50">
               <button
-                id="mode-dig-btn"
-                onClick={() => setMode(AppMode.SAMPLE)}
-                className={`flex-1 flex items-center justify-center text-[10px] font-extrabold uppercase transition-all tracking-wider ${mode === AppMode.SAMPLE ? 'bg-retro-accent text-white' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'}`}
+                id="appMode-dig-btn"
+                onClick={() => setAppMode(AppMode.SAMPLE)}
+                className={`flex-1 flex items-center justify-center text-[10px] font-extrabold uppercase transition-all tracking-wider ${appMode === AppMode.SAMPLE ? 'bg-retro-accent text-white' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'}`}
               >
                 Dig Library
               </button>
               <button
-                id="mode-perform-btn"
+                id="appMode-perform-btn"
                 onClick={() => {
                   setIsEditMode(!isEditMode);
-                  if (mode === AppMode.SAMPLE) setMode(AppMode.PERFORM);
+                  if (appMode === AppMode.SAMPLE) setAppMode(AppMode.PERFORM);
                 }}
                 className={`flex-1 flex items-center justify-center text-[10px] font-extrabold uppercase transition-all tracking-wider ${!isEditMode ? 'bg-zinc-800/80 text-white' : 'bg-retro-accent text-white shadow-inner'}`}
               >
@@ -551,12 +554,12 @@ const App: React.FC = () => {
             </div>
             <div className="flex items-stretch">
               <button
-                id="mode-sequence-btn"
-                onClick={() => setMode(mode === AppMode.SEQUENCE ? AppMode.PERFORM : AppMode.SEQUENCE)}
-                className={`w-20 border-r border-zinc-800/50 flex flex-row gap-2 items-center justify-center transition-all ${mode === AppMode.SEQUENCE ? 'bg-retro-accent text-white shadow-lg' : 'bg-black/20 text-zinc-500 hover:text-zinc-300'}`}
+                id="appMode-sequence-btn"
+                onClick={() => setAppMode(appMode === AppMode.SEQUENCE ? AppMode.PERFORM : AppMode.SEQUENCE)}
+                className={`w-20 border-r border-zinc-800/50 flex flex-row gap-2 items-center justify-center transition-all ${appMode === AppMode.SEQUENCE ? 'bg-retro-accent text-white shadow-lg' : 'bg-black/20 text-zinc-500 hover:text-zinc-300'}`}
               >
                 <span className="text-[8px] uppercase font-extrabold mb-0.5 tracking-tighter">Step</span>
-                <span className={`text-[10px] font-extrabold ${mode === AppMode.SEQUENCE ? 'text-white' : 'text-retro-accent'}`}>{currentStep > -1 ? currentStep + 1 : '--'}</span>
+                <span className={`text-[10px] font-extrabold ${appMode === AppMode.SEQUENCE ? 'text-white' : 'text-retro-accent'}`}>{currentStep > -1 ? currentStep + 1 : '--'}</span>
               </button>
               <button id="transport-play-btn" onClick={togglePlay} className={`w-16 flex items-center justify-center transition-all ${isPlaying ? 'bg-emerald-600 text-white animate-pulse' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}>
                 {isPlaying ? <Square size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" className="ml-0.5" />}
@@ -572,7 +575,7 @@ const App: React.FC = () => {
           className="flex-1 flex flex-col items-center justify-center bg-retro-bg overflow-hidden relative min-h-0 w-full">
           <div className={`${isLandscape ? 'w-full h-full p-2' : 'flex-1 aspect-square max-h-full max-w-full p-2 mx-auto'}`}>
             <PadGrid
-              appMode={mode}
+              appMode={appMode}
               isEditMode={isEditMode}
               isUltraSampleMode={isUltraSampleMode}
               onUltraRecordStart={handleUltraRecordStart}
@@ -589,12 +592,20 @@ const App: React.FC = () => {
              bg-retro-panel border-zinc-800/80 flex flex-col shadow-2xl z-20 overflow-hidden relative
            `}
       >
-        {mode === AppMode.SEQUENCE ? (
+        {appMode === AppMode.SEQUENCE ? (
           <SequencePanel />
         ) : (
           <ParametersPanel isLandscape={isLandscape} isUltraSampleMode={isUltraSampleMode} />
         )}
       </footer>
+
+      {/* Global Modals */}
+      {isRecordingModalOpen && (
+        <RecordingModal
+          onClose={() => setRecordingModalOpen(false)}
+          onSave={saveRecordedSample}
+        />
+      )}
 
       {/* iOS Audio Resume Prompt - Shown when AudioContext is suspended after background return */}
       {showAudioResumePrompt && (

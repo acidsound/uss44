@@ -1,7 +1,7 @@
 
 
 import { create } from 'zustand';
-import { Pad, ChannelId, Envelope, SampleMetadata, TriggerMode } from '../types';
+import { Pad, ChannelId, Envelope, SampleMetadata, TriggerMode, AppMode } from '../types';
 import { useAudioStore } from './audioStore';
 import { PAD_COLORS, SAMPLE_SET_URL } from '../constants';
 import { dbService } from '../services/dbService';
@@ -46,6 +46,13 @@ interface PadState {
   sourcePadId: string | null;
   setCloneMode: (sourcePadId: string | null) => void;
   executeClone: (targetPadIndex: number) => void;
+
+  // New Global UI State
+  appMode: AppMode;
+  setAppMode: (mode: AppMode) => void;
+  isRecordingModalOpen: boolean;
+  setRecordingModalOpen: (open: boolean) => void;
+  saveRecordedSample: (buffer: AudioBuffer, name: string) => Promise<void>;
 }
 
 
@@ -548,5 +555,54 @@ export const usePadStore = create<PadState>((set, get) => ({
 
     selectPad(targetPadIndex);
     set({ isCloneMode: false, sourcePadId: null });
-  }
+  },
+
+  // Global UI Actions
+  appMode: AppMode.PERFORM,
+  setAppMode: (mode) => set({ appMode: mode }),
+  isRecordingModalOpen: false,
+  setRecordingModalOpen: (open) => set({ isRecordingModalOpen: open }),
+  saveRecordedSample: async (buffer, name) => {
+    const { selectedPadId, updatePad } = get();
+    const { loadSampleToWorklet } = useAudioStore.getState();
+    const targetPadIndex = parseInt(selectedPadId.split('-')[1]);
+
+    const sampleId = `rec-${Date.now()}`;
+    const waveform = generateWaveform(buffer);
+
+    // Auto Crop Logic
+    const data = buffer.getChannelData(0);
+    const threshold = 0.02;
+    let startIdx = 0;
+    let endIdx = data.length - 1;
+    for (let i = 0; i < data.length; i++) { if (Math.abs(data[i]) > threshold) { startIdx = i; break; } }
+    for (let i = data.length - 1; i >= startIdx; i--) { if (Math.abs(data[i]) > threshold) { endIdx = i; break; } }
+
+    const padding = Math.floor(buffer.sampleRate * 0.03);
+    startIdx = Math.max(0, startIdx - padding);
+    endIdx = Math.min(data.length - 1, endIdx + padding);
+    const startPos = startIdx / data.length;
+    const endPos = endIdx / data.length;
+
+    loadSampleToWorklet(sampleId, buffer);
+    updatePad(targetPadIndex, {
+      sampleId,
+      name: name,
+      buffer,
+      start: startPos,
+      end: endPos,
+      viewStart: startPos,
+      viewEnd: endPos,
+      triggerMode: 'GATE'
+    });
+
+    // Update the centralized samples lookup
+    set(state => ({
+      samples: { ...state.samples, [sampleId]: { name, waveform } }
+    }));
+
+    const arrayBuffer = data.buffer.slice(0);
+    await dbService.saveSample({ id: sampleId, name: name, data: arrayBuffer, waveform });
+    set({ isRecordingModalOpen: false });
+  },
 }));
