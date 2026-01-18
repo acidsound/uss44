@@ -41,7 +41,7 @@ const App: React.FC = () => {
   const { initialize, resume, initialized, initMic, closeMic, startRecording, stopRecording, loadSampleToWorklet } = useAudioStore((state) => state);
   const {
     initPads, currentChannel, setChannel, selectedPadId, selectPad, triggerPad, stopPad, updatePad, isHydrating,
-    appMode, setAppMode, isRecordingModalOpen, setRecordingModalOpen, saveRecordedSample
+    appMode, setAppMode, isRecordingModalOpen, setRecordingModalOpen, saveRecordedSample, statusMessage
   } = usePadStore((state) => state);
   const { bpm, isPlaying, currentStep, setStep, togglePlay, toggleStep, setSelectedStepIndex, initSequencer } = useSequencerStore((state) => state);
 
@@ -605,6 +605,13 @@ const App: React.FC = () => {
           onClose={() => setRecordingModalOpen(false)}
           onSave={saveRecordedSample}
         />
+      )}
+
+      {statusMessage && (
+        <div id="global-status-toast" className="fixed bottom-24 left-1/2 -translate-x-1/2 px-6 py-3 bg-red-600 text-white text-[10px] font-extrabold uppercase rounded-full shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 z-[200] glow-red border border-white/20 flex items-center gap-3">
+          <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+          {statusMessage}
+        </div>
       )}
 
       {/* iOS Audio Resume Prompt - Shown when AudioContext is suspended after background return */}

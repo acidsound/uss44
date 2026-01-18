@@ -282,6 +282,15 @@ const releaseTime = time + (stepData.length * stepTime);
 
 ## 🔍 오디오 분석/시각화
 
+### BPM 탐지 (detectBPM)
+
+샘플의 템포를 분석하기 위해 자기상관(Autocorrelation) 방식을 사용합니다.
+
+- **최소 분석 길이**: 0.8초 (300 BPM 1마디 기준)  
+  *0.8초 미만의 짧은 샘플(원샷 등)은 분석에서 제외됩니다.*
+- **탐지 범위**: 40 ~ 300 BPM  
+- **알고리즘**: 에너지 엔벨로프 추출(100Hz 해상도) 후 랙(Lag) 계산
+
 ### Master Analyser 설정
 
 ```typescript
@@ -312,6 +321,19 @@ const micAnalyser = audioContext.createAnalyser();
 micAnalyser.fftSize = 2048;
 micSource.connect(micAnalyser);
 ```
+
+---
+
+## 🔔 상태 알림 시스템 (Status Toast)
+
+전역 오류 및 정보 공유를 위한 토스트 시스템입니다.
+
+- **컴포넌트**: `App.tsx`의 `Global Status Toast`
+- **트리거**: `padStore.setStatusMessage(msg)`
+- **동작**: 화면 하단 중앙에 표시되며 3초 후 자동 소멸
+- **주요 메시지**:
+  - `ERROR: SAMPLE NOT FOUND (404)`
+  - `ERROR: FAILED TO FETCH PACK METADATA`
 
 ---
 

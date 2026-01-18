@@ -6,6 +6,7 @@ import { useAudioStore } from './audioStore';
 import { PAD_COLORS, SAMPLE_SET_URL } from '../constants';
 import { dbService } from '../services/dbService';
 import { generateWaveform } from '../utils/audioUtils';
+import { STRUDEL_PACKS } from './defaultPacks';
 
 interface PadState {
   pads: Record<string, Pad>;
@@ -51,6 +52,8 @@ interface PadState {
   // New Global UI State
   appMode: AppMode;
   setAppMode: (mode: AppMode) => void;
+  statusMessage: string | null;
+  setStatusMessage: (msg: string | null) => void;
   isRecordingModalOpen: boolean;
   setRecordingModalOpen: (open: boolean) => void;
   saveRecordedSample: (buffer: AudioBuffer, name: string) => Promise<void>;
@@ -120,11 +123,34 @@ export const usePadStore = create<PadState>((set, get) => ({
     // Load Sample Packs
     let packs = await dbService.getAllSamplePacks();
     const defaultPack = { id: 'factory-default', name: 'Factory Default', url: SAMPLE_SET_URL, isDefault: true };
+
+    // Check for missing Strudel packs and add them
+    let packsChanged = false;
     if (packs.length === 0) {
       await dbService.saveSamplePack(defaultPack);
       packs = [defaultPack];
+      packsChanged = true;
     }
-    set({ samplePacks: packs });
+
+    for (const sp of STRUDEL_PACKS) {
+      if (!packs.find(p => p.url === sp.url)) {
+        const newPack = {
+          id: `strudel-${sp.name.toLowerCase().replace(/[^a-z0-0]/g, '-')}`,
+          name: sp.name,
+          url: sp.url,
+          isDefault: false
+        };
+        await dbService.saveSamplePack(newPack);
+        packs.push(newPack);
+        packsChanged = true;
+      }
+    }
+
+    if (packsChanged) {
+      set({ samplePacks: packs });
+    } else {
+      set({ samplePacks: packs });
+    }
 
     let currentPackId = await dbService.getMetadata('current_sample_pack_id');
     if (!currentPackId) currentPackId = 'factory-default';
@@ -162,6 +188,7 @@ export const usePadStore = create<PadState>((set, get) => ({
         await dbService.saveMetadata('last_active_pack_id', currentPackId);
       } catch (e) {
         console.error('Failed to fetch sample set', e);
+        get().setStatusMessage(`ERROR: FAILED TO FETCH PACK METADATA`);
       }
     }
     set({ sampleLibrary: library });
@@ -346,12 +373,15 @@ export const usePadStore = create<PadState>((set, get) => ({
   },
 
   loadSample: async (index, url, name) => {
-    const { pads, currentChannel } = get();
+    const { pads, currentChannel, setStatusMessage } = get();
     const { audioContext, loadSampleToWorklet } = useAudioStore.getState();
     if (!audioContext) return;
 
     try {
       const resp = await fetch(url);
+      if (!resp.ok) {
+        throw new Error(`FILE_NOT_FOUND: ${resp.status}`);
+      }
       const originalArrayBuffer = await resp.arrayBuffer();
       const audioBuffer = await audioContext.decodeAudioData(originalArrayBuffer.slice(0));
       const sampleId = `${currentChannel}-${index}-${Date.now()}`;
@@ -377,8 +407,13 @@ export const usePadStore = create<PadState>((set, get) => ({
       }));
       await dbService.saveSample({ id: sampleId, name: name, data: originalArrayBuffer, waveform });
       await dbService.savePadConfig(id, updatedPad);
-    } catch (e) {
+    } catch (e: any) {
       console.error('Failed to load sample', e);
+      if (e.message?.includes('FILE_NOT_FOUND') || e.message?.includes('404')) {
+        setStatusMessage(`ERROR: SAMPLE NOT FOUND (404) - ${name}`);
+      } else {
+        setStatusMessage(`ERROR LOADING SAMPLE: ${name}`);
+      }
     }
   },
 
@@ -583,6 +618,13 @@ export const usePadStore = create<PadState>((set, get) => ({
   // Global UI Actions
   appMode: AppMode.PERFORM,
   setAppMode: (mode) => set({ appMode: mode }),
+  statusMessage: null,
+  setStatusMessage: (msg: string | null) => {
+    set({ statusMessage: msg });
+    if (msg) {
+      setTimeout(() => set({ statusMessage: null }), 3000);
+    }
+  },
   isRecordingModalOpen: false,
   setRecordingModalOpen: (open) => set({ isRecordingModalOpen: open }),
   saveRecordedSample: async (buffer, name) => {

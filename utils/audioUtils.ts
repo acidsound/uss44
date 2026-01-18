@@ -13,7 +13,7 @@ export const detectBPM = (buffer: AudioBuffer, startFactor: number = 0, endFacto
     const endIdx = Math.floor(endFactor * data.length);
     const sliceLen = endIdx - startIdx;
 
-    if (sliceLen < sampleRate * 0.5) return null; // Too short to detect BPM reliably
+    if (sliceLen < sampleRate * 0.8) return null; // Too short to detect BPM reliably (min 0.8s for 300BPM 1bar)
 
     // 1. Extract energy envelope (approx 100Hz resolution)
     const winSize = Math.floor(sampleRate / 100);
@@ -28,9 +28,9 @@ export const detectBPM = (buffer: AudioBuffer, startFactor: number = 0, endFacto
     }
 
     // 2. Perform Autocorrelation on the envelope
-    // Focus on 60-180 BPM lags
-    const minLag = Math.floor((60 / 180) * 100);
-    const maxLag = Math.floor((60 / 60) * 100);
+    // Expanded range to support 40-300 BPM
+    const minLag = Math.floor((60 / 300) * 100); // 300 BPM
+    const maxLag = Math.floor((60 / 40) * 100);  // 40 BPM
     const results: { lag: number, score: number }[] = [];
 
     for (let lag = minLag; lag <= maxLag; lag++) {

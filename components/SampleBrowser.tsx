@@ -84,10 +84,14 @@ const SampleItem: React.FC<{
 }> = ({ meta, targetPadIndex, isPlaying, onPlay, onStop, onSelect }) => {
   const [buffer, setBuffer] = useState<AudioBuffer | null>(null);
   const [detectedBpm, setDetectedBpm] = useState<number | null>(null);
+  const [isMissing, setIsMissing] = useState(false);
   const sourceRef = useRef<AudioBufferSourceNode | null>(null);
   const { audioContext } = useAudioStore();
+  const { setStatusMessage } = usePadStore();
+  const isPlayingRef = useRef(isPlaying);
 
   useEffect(() => {
+    isPlayingRef.current = isPlaying;
     if (!isPlaying && sourceRef.current) {
       try { sourceRef.current.stop(); } catch (e) { }
       sourceRef.current = null;
@@ -105,24 +109,51 @@ const SampleItem: React.FC<{
 
   const togglePreview = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!audioContext) return;
-    if (isPlaying) { onStop(); return; }
+    if (!audioContext || isMissing) return;
+    if (isPlaying) {
+      onStop();
+      isPlayingRef.current = false;
+      return;
+    }
     onPlay();
+    isPlayingRef.current = true;
     let audioBuffer = buffer;
     if (!audioBuffer) {
       try {
         const resp = await fetch(meta.url);
+        if (!resp.ok) {
+          throw new Error(`404: ${resp.status}`);
+        }
         const arrayBuffer = await resp.arrayBuffer();
         audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
         setBuffer(audioBuffer);
         const bpm = detectBPM(audioBuffer);
         setDetectedBpm(bpm);
-      } catch (e) {
+      } catch (e: any) {
         console.error("Preview failed", e);
+        if (e.message?.includes('404')) {
+          setStatusMessage(`ERROR: SAMPLE NOT FOUND (404) - ${meta.name}`);
+          setIsMissing(true);
+        } else {
+          setStatusMessage(`ERROR LOADING PREVIEW: ${meta.name}`);
+        }
         onStop();
         return;
       }
     }
+
+    // Double check if we are still supposed to be playing after the async operations
+    if (!isPlayingRef.current) {
+      setBuffer(audioBuffer);
+      return;
+    }
+
+    // Double check before starting source
+    if (sourceRef.current) {
+      try { sourceRef.current.stop(); } catch (e) { }
+    }
+
     const source = audioContext.createBufferSource();
     source.buffer = audioBuffer;
     const previewGain = audioContext.createGain();
@@ -135,27 +166,31 @@ const SampleItem: React.FC<{
   };
 
   return (
-    <div id={`sample-item-${meta.id}`} className="bg-[#121214] border border-white/5 flex items-center p-3 gap-4 rounded-xl hover:border-retro-accent/40 transition-all shadow-lg">
+    <div id={`sample-item-${meta.id}`} className={`bg-[#121214] border border-white/5 flex items-center p-3 gap-4 rounded-xl transition-all shadow-lg ${isMissing ? 'opacity-40 grayscale pointer-events-none' : 'hover:border-retro-accent/40'}`}>
       <div
         onClick={togglePreview}
-        className="w-20 h-14 bg-zinc-900/50 rounded-lg flex items-center justify-center cursor-pointer hover:bg-zinc-800 transition-colors relative overflow-hidden group"
+        className={`w-20 h-14 bg-zinc-900/50 rounded-lg flex items-center justify-center cursor-pointer hover:bg-zinc-800 transition-colors relative overflow-hidden group ${isMissing ? 'cursor-not-allowed' : ''}`}
       >
         {isPlaying ? (
           <Square size={16} className="text-white fill-white shadow-[0_0_10px_white] z-10" />
         ) : (
           <Play size={16} className="text-zinc-500 group-hover:text-white transition-colors z-10" />
         )}
-        {(meta.waveform || buffer) && (
+        {(meta.waveform || buffer) && !isMissing && (
           <div className="absolute inset-0 opacity-20 group-hover:opacity-40 transition-opacity">
             <WaveformThumbnail waveform={meta.waveform} buffer={buffer || undefined} className="w-full h-full" color="#ff1e56" />
           </div>
         )}
+        {isMissing && <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-20"><X size={14} className="text-red-500" /></div>}
       </div>
 
       <div className="flex-1 flex flex-col min-w-0">
         <span className="text-[8px] text-zinc-500 uppercase font-extrabold tracking-widest">{meta.bank}</span>
-        <span className="font-extrabold text-[11px] uppercase text-zinc-200 truncate tracking-tight">{meta.name}</span>
-        {detectedBpm && (
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className={`font-extrabold text-[11px] uppercase truncate tracking-tight ${isMissing ? 'text-zinc-600 line-through' : 'text-zinc-200'}`}>{meta.name}</span>
+          {isMissing && <span className="text-[7px] bg-red-900/40 text-red-500 px-1 rounded font-black uppercase">Missing</span>}
+        </div>
+        {!isMissing && detectedBpm && (
           <div className="flex items-center gap-1.5 mt-0.5 animate-in fade-in slide-in-from-left-1 duration-300">
             <div className="w-1 h-1 rounded-full bg-retro-accent animate-pulse" />
             <span className="text-[9px] font-black text-retro-accent italic tracking-tighter uppercase">{detectedBpm} BPM</span>
@@ -164,8 +199,9 @@ const SampleItem: React.FC<{
       </div>
 
       <button
-        onClick={() => onSelect(meta.url, meta.name)}
-        className="bg-zinc-800/80 hover:bg-retro-accent text-[9px] uppercase font-extrabold px-4 h-9 rounded-lg border border-white/5 transition-all text-white shadow-md active:scale-95"
+        onClick={() => !isMissing && onSelect(meta.url, meta.name)}
+        disabled={isMissing}
+        className={`bg-zinc-800/80 hover:bg-retro-accent text-[9px] uppercase font-extrabold px-4 h-9 rounded-lg border border-white/5 transition-all text-white shadow-md active:scale-95 ${isMissing ? 'opacity-0' : ''}`}
       >
         Load Pad
       </button>
@@ -177,7 +213,6 @@ export const SampleBrowser: React.FC<SampleBrowserProps> = ({ onClose, isLandsca
   const [sampleTab, setSampleTab] = useState<'LIBRARY' | 'DIG'>('LIBRARY');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBank, setSelectedBank] = useState<string | null>(null);
-  const [status, setStatus] = useState('');
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(24);
   const [showPackManager, setShowPackManager] = useState(false);
@@ -303,7 +338,7 @@ export const SampleBrowser: React.FC<SampleBrowserProps> = ({ onClose, isLandsca
                 <input
                   id="browser-search-input"
                   type="text"
-                  placeholder="Search 1000+ Factory Samples..."
+                  placeholder="Search Factory Samples..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full bg-zinc-900/50 border border-white/5 rounded-xl py-2.5 pl-10 pr-4 text-[11px] font-extrabold text-white focus:border-retro-accent/50 focus:bg-zinc-900/80 focus:outline-none transition-all placeholder:text-zinc-700"
@@ -389,11 +424,6 @@ export const SampleBrowser: React.FC<SampleBrowserProps> = ({ onClose, isLandsca
         </div>
       </div>
 
-      {status && (
-        <div id="browser-status-toast" className="fixed bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 bg-retro-accent text-white text-[10px] font-extrabold uppercase rounded-full shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300 z-[100] glow-red">
-          {status}
-        </div>
-      )}
       {showPackManager && <SamplePackManager onClose={() => setShowPackManager(false)} />}
     </div>
   );

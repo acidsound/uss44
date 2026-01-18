@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { X, Plus, Trash2, Edit2, Download, Upload, Check, Loader2, Library } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { X, Plus, Trash2, Edit2, Download, Upload, Check, Loader2, Library, Search } from 'lucide-react';
 import { usePadStore } from '../stores/padStore';
 
 interface SamplePackManagerProps {
@@ -17,10 +17,45 @@ export const SamplePackManager: React.FC<SamplePackManagerProps> = ({ onClose })
 
     const [editName, setEditName] = useState('');
     const [editUrl, setEditUrl] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
+
+    const sortedFilteredPacks = useMemo(() => {
+        const filtered = samplePacks.filter(p =>
+            p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            p.url.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
+        return filtered.sort((a, b) => {
+            // 1. Factory Default is always top
+            if (a.id === 'factory-default') return -1;
+            if (b.id === 'factory-default') return 1;
+
+            // 2. Active pack is second
+            if (a.id === currentSamplePackId) return -1;
+            if (b.id === currentSamplePackId) return 1;
+
+            // 3. Alphabetical for the rest
+            return a.name.localeCompare(b.name);
+        });
+    }, [samplePacks, searchTerm, currentSamplePackId]);
 
     const handleAdd = async () => {
         if (!newName || !newUrl) return;
-        await addSamplePack(newName, newUrl);
+
+        // Transform user/repo/path to GitHub raw URL if it's not a full URL
+        let finalUrl = newUrl.trim();
+        if (!finalUrl.startsWith('http') && finalUrl.includes('/')) {
+            const parts = finalUrl.split('/');
+            if (parts.length >= 2) {
+                const user = parts[0];
+                const repo = parts[1];
+                const path = parts.slice(2).join('/');
+                const pathSuffix = path ? `/${path}/strudel.json` : '/strudel.json';
+                finalUrl = `https://raw.githubusercontent.com/${user}/${repo}/refs/heads/main${pathSuffix}`;
+            }
+        }
+
+        await addSamplePack(newName, finalUrl);
         setNewName('');
         setNewUrl('');
         setIsAdding(false);
@@ -82,9 +117,59 @@ export const SamplePackManager: React.FC<SamplePackManagerProps> = ({ onClose })
                     <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors p-1"><X size={20} /></button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                    {samplePacks.map((pack) => (
-                        <div key={pack.id} className="bg-zinc-800/30 border border-white/5 rounded-xl p-4 group">
+                <div className="px-4 py-2.5 bg-black/40 border-b border-white/5 flex items-center gap-3">
+                    <Search size={14} className="text-zinc-600" />
+                    <input
+                        type="search"
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                        placeholder="SEARCH SAMPLES..."
+                        className="bg-transparent border-none outline-none text-[10px] text-zinc-300 w-full placeholder:text-zinc-700 font-black uppercase tracking-widest"
+                    />
+                    {searchTerm && (
+                        <button onClick={() => setSearchTerm('')} className="p-1 hover:text-white text-zinc-600 transition-colors">
+                            <X size={12} />
+                        </button>
+                    )}
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                    {isAdding ? (
+                        <div className="bg-retro-accent/5 border border-retro-accent/20 rounded-xl p-4 space-y-3 mb-2">
+                            <input
+                                type="text"
+                                value={newName}
+                                onChange={e => setNewName(e.target.value)}
+                                placeholder="Pack Name (e.g. My Custom Pack)"
+                                className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:border-retro-accent outline-none font-bold"
+                            />
+                            <div className="space-y-1">
+                                <input
+                                    type="text"
+                                    value={newUrl}
+                                    onChange={e => setNewUrl(e.target.value)}
+                                    placeholder="JSON URL or 'user/repo'"
+                                    className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:border-retro-accent outline-none font-mono"
+                                />
+                                <p className="text-[8px] text-zinc-600 px-1 uppercase font-bold tracking-tighter">Enter full JSON URL or GitHub 'user/repo' shorthand</p>
+                            </div>
+                            <div className="flex gap-2 pt-1">
+                                <button onClick={handleAdd} className="flex-1 bg-retro-accent text-white py-2 rounded-lg text-[10px] font-extrabold uppercase shadow-[0_0_15px_rgba(255,30,86,0.3)]">Add Pack</button>
+                                <button onClick={() => setIsAdding(false)} className="flex-1 bg-zinc-700 text-white py-2 rounded-lg text-[10px] font-extrabold uppercase">Cancel</button>
+                            </div>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={() => setIsAdding(true)}
+                            className="w-full py-4 border border-dashed border-white/10 rounded-xl flex flex-col items-center justify-center gap-2 text-zinc-600 hover:border-retro-accent/40 hover:text-white hover:bg-white/5 transition-all text-[10px] font-extrabold uppercase tracking-widest mb-2"
+                        >
+                            <Plus size={20} />
+                            Add New Pack
+                        </button>
+                    )}
+
+                    {sortedFilteredPacks.map((pack) => (
+                        <div key={pack.id} className="bg-zinc-800/30 border border-white/5 rounded-xl p-3 group">
                             {editingId === pack.id ? (
                                 <div className="space-y-3">
                                     <input
@@ -107,42 +192,45 @@ export const SamplePackManager: React.FC<SamplePackManagerProps> = ({ onClose })
                                     </div>
                                 </div>
                             ) : (
-                                <div className="flex items-center justify-between gap-4">
+                                <div className="flex items-center justify-between gap-3">
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2">
-                                            <span className="text-xs font-extrabold uppercase text-zinc-200 truncate">{pack.name}</span>
+                                            <span className="text-[11px] font-extrabold uppercase text-zinc-200 truncate">{pack.name}</span>
                                             {pack.isDefault && <span className="text-[8px] bg-white/10 text-zinc-500 px-1.5 py-0.5 rounded font-bold">DEFAULT</span>}
                                         </div>
-                                        <div className="text-[9px] text-zinc-600 truncate mt-1 font-mono">{pack.url}</div>
+                                        <div className="text-[8px] text-zinc-600 truncate mt-0.5 font-mono">{pack.url}</div>
                                     </div>
                                     <div className="flex items-center gap-1">
                                         {currentSamplePackId === pack.id ? (
-                                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-retro-accent/20 border border-retro-accent/30 rounded-lg text-retro-accent text-[9px] font-extrabold uppercase">
-                                                <Check size={12} />
+                                            <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-retro-accent/20 border border-retro-accent/30 rounded-lg text-retro-accent text-[9px] font-extrabold uppercase">
+                                                <Check size={10} />
                                                 Active
                                             </div>
                                         ) : (
                                             <button
-                                                onClick={() => loadSamplePack(pack.id)}
-                                                className="px-3 py-1.5 bg-zinc-700 hover:bg-white hover:text-black transition-all rounded-lg text-[9px] font-extrabold uppercase text-white shadow-lg active:scale-95"
+                                                onClick={async () => {
+                                                    await loadSamplePack(pack.id);
+                                                    onClose();
+                                                }}
+                                                className="px-2.5 py-1.5 bg-zinc-700 hover:bg-white hover:text-black transition-all rounded-lg text-[9px] font-extrabold uppercase text-white shadow-lg active:scale-95"
                                             >
                                                 Switch
                                             </button>
                                         )}
-                                        <div className="w-px h-4 bg-white/10 mx-1" />
+                                        <div className="w-px h-3 bg-white/10 mx-1" />
                                         <button
                                             onClick={() => {
                                                 setEditingId(pack.id);
                                                 setEditName(pack.name);
                                                 setEditUrl(pack.url);
                                             }}
-                                            className="p-2 text-zinc-500 hover:text-white transition-colors"
+                                            className="p-1.5 text-zinc-500 hover:text-white transition-colors"
                                         >
-                                            <Edit2 size={14} />
+                                            <Edit2 size={12} />
                                         </button>
                                         {!pack.isDefault && (
-                                            <button onClick={() => deleteSamplePack(pack.id)} className="p-2 text-red-500/50 hover:text-red-500 transition-colors">
-                                                <Trash2 size={14} />
+                                            <button onClick={() => deleteSamplePack(pack.id)} className="p-1.5 text-red-500/50 hover:text-red-500 transition-colors">
+                                                <Trash2 size={12} />
                                             </button>
                                         )}
                                     </div>
@@ -150,37 +238,6 @@ export const SamplePackManager: React.FC<SamplePackManagerProps> = ({ onClose })
                             )}
                         </div>
                     ))}
-
-                    {isAdding ? (
-                        <div className="bg-retro-accent/5 border border-retro-accent/20 rounded-xl p-4 space-y-3">
-                            <input
-                                type="text"
-                                value={newName}
-                                onChange={e => setNewName(e.target.value)}
-                                placeholder="Pack Name (e.g. Future Bass Essentials)"
-                                className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:border-retro-accent outline-none"
-                            />
-                            <input
-                                type="text"
-                                value={newUrl}
-                                onChange={e => setNewUrl(e.target.value)}
-                                placeholder="JSON URL (https://...)"
-                                className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:border-retro-accent outline-none"
-                            />
-                            <div className="flex gap-2">
-                                <button onClick={handleAdd} className="flex-1 bg-retro-accent text-white py-2 rounded-lg text-[10px] font-extrabold uppercase">Add Pack</button>
-                                <button onClick={() => setIsAdding(false)} className="flex-1 bg-zinc-700 text-white py-2 rounded-lg text-[10px] font-extrabold uppercase">Cancel</button>
-                            </div>
-                        </div>
-                    ) : (
-                        <button
-                            onClick={() => setIsAdding(true)}
-                            className="w-full py-4 border border-dashed border-white/10 rounded-xl flex flex-col items-center justify-center gap-2 text-zinc-600 hover:border-retro-accent/40 hover:text-white hover:bg-white/5 transition-all text-[10px] font-extrabold uppercase tracking-widest"
-                        >
-                            <Plus size={20} />
-                            Add New Pack
-                        </button>
-                    )}
                 </div>
 
                 <div className="p-4 bg-zinc-950 border-t border-white/5 flex gap-2">
