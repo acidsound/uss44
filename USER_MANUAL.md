@@ -88,6 +88,13 @@ When a pad is selected, you can manipulate its sound in real-time. Changes are a
      * **Tip**: Setting Length to the max (**16.0**) allows loops to play infinitely without gating.
 5. Press **Play** to hear your pattern loop. Multi-channel sequencing (A/B/C/D) is fully supported.
 
+### Real-time Step Recording (MPC Style)
+You can record your performance directly into the sequencer in real-time:
+1. **Enable Record Mode**: **Long-press** the **Play** button until it turns red and shows a record icon.
+2. **Perform**: While the sequencer is playing, hit any pad in **Perform** mode. Your hits will be automatically recorded into the active step of the sequencer.
+3. **Disable**: Long-press the Play button again (or stop playback) to exit recording mode.
+   * *Note: This allows you to quickly build patterns by "playing" them rather than manual step entry.*
+
 ### Minimalist Step Visualization
 To maximize clarity on mobile screens, active steps display parameters visually instead of text:
 - **Length Bar (Bottom)**: A thin green bar at the bottom of each step shows relative length.

@@ -28,7 +28,7 @@ export const PadGrid: React.FC<PadGridProps> = ({
   onUltraRecordStop
 }) => {
   const { pads, samples, currentChannel, selectedPadId, selectPad, triggerPad, stopPad, isCloneMode, setCloneMode, executeClone } = usePadStore();
-  const { currentStep, isPlaying, patterns, toggleStep, setSelectedStepIndex, selectedStepIndex } = useSequencerStore();
+  const { currentStep, isPlaying, patterns, toggleStep, setSelectedStepIndex, selectedStepIndex, isRecording, recordHit } = useSequencerStore();
 
   const isSequenceMode = appMode === AppMode.SEQUENCE;
   const selectedPadIndex = parseInt(selectedPadId.split('-').pop() || '0');
@@ -65,6 +65,9 @@ export const PadGrid: React.FC<PadGridProps> = ({
     } else {
       selectPad(idx);
       triggerPad(idx);
+      if (isPlaying && isRecording) {
+        recordHit(currentChannel, idx);
+      }
     }
 
     activeInteractionsRef.current.set(interactionId, idx);

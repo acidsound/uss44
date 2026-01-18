@@ -43,7 +43,10 @@ const App: React.FC = () => {
     initPads, currentChannel, setChannel, selectedPadId, selectPad, triggerPad, stopPad, updatePad, isHydrating,
     appMode, setAppMode, isRecordingModalOpen, setRecordingModalOpen, saveRecordedSample, statusMessage
   } = usePadStore((state) => state);
-  const { bpm, isPlaying, currentStep, setStep, togglePlay, toggleStep, setSelectedStepIndex, initSequencer } = useSequencerStore((state) => state);
+  const {
+    bpm, isPlaying, currentStep, setStep, togglePlay, toggleStep, setSelectedStepIndex, initSequencer,
+    isRecording, setIsRecording, recordHit
+  } = useSequencerStore((state) => state);
 
   const selectedPadIndex = parseInt(selectedPadId.split('-').pop() || '0');
   const bpmRef = useRef(bpm);
@@ -160,6 +163,9 @@ const App: React.FC = () => {
         } else {
           selectPad(padIdx);
           triggerPad(padIdx);
+          if (isPlaying && isRecording) {
+            recordHit(currentChannel, padIdx);
+          }
         }
       }
       if (e.code === 'Space') {
@@ -232,6 +238,24 @@ const App: React.FC = () => {
     setShowAudioResumePrompt(false);
   };
 
+  const longPressTimerRef = useRef<number | null>(null);
+  const handleTransportPointerDown = (e: React.PointerEvent) => {
+    longPressTimerRef.current = window.setTimeout(() => {
+      setIsRecording(!isRecording);
+      // Optional: haptic feedback here if supported
+      if (window.navigator.vibrate) window.navigator.vibrate(50);
+      longPressTimerRef.current = null;
+    }, 600);
+  };
+
+  const handleTransportPointerUp = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+      togglePlay();
+    }
+  };
+
   // UltraSample Mode Logic - Toggle
   const toggleUltraSampleMode = async () => {
     if (isUltraSampleMode) {
@@ -281,6 +305,7 @@ const App: React.FC = () => {
       timerRef.current = undefined;
       setStep(-1);
       currentStepRef.current = 0;
+      setIsRecording(false);
       usePadStore.getState().resetAllPads();
       useAudioStore.getState().stopAll();
     }
@@ -413,11 +438,12 @@ const App: React.FC = () => {
                 </button>
                 <button
                   id="transport-play-btn-l"
-                  onClick={togglePlay}
-                  className={`w-10 h-8 flex items-center justify-center transition-all rounded ${isPlaying ? 'bg-emerald-600 text-white animate-pulse' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}
-                  title={isPlaying ? 'Stop' : 'Play'}
+                  onPointerDown={handleTransportPointerDown}
+                  onPointerUp={handleTransportPointerUp}
+                  className={`w-10 h-8 flex items-center justify-center transition-all rounded ${isPlaying ? (isRecording ? 'bg-red-600 border-2 border-white text-white animate-pulse' : 'bg-emerald-600 text-white animate-pulse') : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}
+                  title={isPlaying ? 'Stop' : 'Play (Long press for Rec)'}
                 >
-                  {isPlaying ? <Square size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
+                  {isPlaying ? (isRecording ? <div className="w-2.5 h-2.5 rounded-full bg-white animate-pulse" /> : <Square size={14} fill="currentColor" />) : <Play size={14} fill="currentColor" />}
                 </button>
               </div>
 
@@ -561,8 +587,13 @@ const App: React.FC = () => {
                 <span className="text-[8px] uppercase font-extrabold mb-0.5 tracking-tighter">Step</span>
                 <span className={`text-[10px] font-extrabold ${appMode === AppMode.SEQUENCE ? 'text-white' : 'text-retro-accent'}`}>{currentStep > -1 ? currentStep + 1 : '--'}</span>
               </button>
-              <button id="transport-play-btn" onClick={togglePlay} className={`w-16 flex items-center justify-center transition-all ${isPlaying ? 'bg-emerald-600 text-white animate-pulse' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}>
-                {isPlaying ? <Square size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" className="ml-0.5" />}
+              <button
+                id="transport-play-btn"
+                onPointerDown={handleTransportPointerDown}
+                onPointerUp={handleTransportPointerUp}
+                className={`w-16 flex items-center justify-center transition-all ${isPlaying ? (isRecording ? 'bg-red-600 border-t-2 border-white text-white animate-pulse' : 'bg-emerald-600 text-white animate-pulse') : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}
+              >
+                {isPlaying ? (isRecording ? <div className="w-3 h-3 rounded-full bg-white animate-pulse" /> : <Square size={16} fill="currentColor" />) : <Play size={16} fill="currentColor" className="ml-0.5" />}
               </button>
             </div>
           </div>

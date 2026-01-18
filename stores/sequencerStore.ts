@@ -21,6 +21,9 @@ interface SequencerState {
   setSelectedStepIndex: (index: number) => void;
   toggleStep: (channel: string, padIndex: number, stepIndex: number) => void;
   updateStepData: (channel: string, padIndex: number, stepIndex: number, updates: Partial<StepData>) => void;
+  isRecording: boolean;
+  setIsRecording: (rec: boolean) => void;
+  recordHit: (channel: string, padIndex: number, velocity?: number) => void;
 
   stepCount: number;
   setStepCount: (count: number) => void;
@@ -44,6 +47,7 @@ export const useSequencerStore = create<SequencerState>((set, get) => ({
   selectedStepIndex: 0,
   stepCount: 16,
   patterns: {},
+  isRecording: false,
 
   // Default last settings
   lastStepSettings: {
@@ -160,6 +164,34 @@ export const useSequencerStore = create<SequencerState>((set, get) => ({
       set({ patterns: { ...patterns, [key]: track } });
     }
 
+    dbService.saveSequence(key, track);
+  },
+
+  setIsRecording: (isRecording) => set({ isRecording }),
+
+  recordHit: (channel, padIndex, velocity = 127) => {
+    const { isPlaying, isRecording, currentStep, patterns, stepCount, lastStepSettings } = get();
+    if (!isPlaying || !isRecording || currentStep < 0) return;
+
+    const key = `${channel}-${padIndex}`;
+    let track = patterns[key] ? [...patterns[key]] : [];
+
+    // Ensure track length
+    if (track.length < stepCount) {
+      const missing = stepCount - track.length;
+      track = [...track, ...Array.from({ length: missing }, createDefaultStep)];
+    }
+
+    // Record the hit at currentStep
+    track[currentStep] = {
+      ...track[currentStep],
+      active: true,
+      velocity: velocity,
+      pitch: lastStepSettings.pitch, // Use last used pitch
+      length: lastStepSettings.length // Use last used length
+    };
+
+    set({ patterns: { ...patterns, [key]: track } });
     dbService.saveSequence(key, track);
   }
 }));
