@@ -54,11 +54,10 @@ When a pad is selected, you can manipulate its sound in real-time. Changes are a
   - **BPM SYNC**: Click the calculated BPM value to instantly sync the project's global tempo to that loop.
   - **Snap (Magnet Icon)**: Enable to automatically snap markers to the nearest **Zero-Crossing**, eliminating audible clicks at loop points.
 - **CTRL Tab (Knobs)**:
-  - **Velocity**: Step intensity is visualized via border brightness (0-127).
   - **Pitch**: Change playback speed and tone (-24 to +24 semitones).
   - **Gain**: Adjust the volume level of the pad.
   - **Pan**: Move the sound in the stereo field.
-  - **Cutoff / Res**: Control the 12dB/oct State Variable Filter.
+  - **CUT OFF / Res**: Control the 12dB/oct State Variable Filter.
   - **💡 Pro Tip**: **Double-click** or **Double-tap** any knob to instantly reset it to its default value!
 - **Pad Options Menu**:
   - Tap the **PAD** number in the header or use the **Shift + Click** (or context menu) to open pad options.
@@ -79,14 +78,22 @@ When a pad is selected, you can manipulate its sound in real-time. Changes are a
 ## 🎼 Sequencing (Step Mode)
 
 1. Select a pad you want to sequence.
-2. Tap the **Step** button. The grid now represents 16 beats (1 bar).
+2. Tap the **Step** button. The grid now represents 16 steps (1 bar).
 3. Ensure you are in **Perform** mode to toggle steps ON/OFF.
 4. Switch to **Edit** mode to select a specific step and adjust parameters:
    - **Velocity**: Controls volume and pad brightness (0-127).
-   - **Pitch**: Per-step semitone offset.
+   - **Pitch**: Per-step semitone offset (-24 to +24).
    - **Length**: Controls the gate/loop duration per step (0.1 to 16.0). 
      * **Tip**: Setting Length to the max (**16.0**) allows loops to play infinitely without gating.
-5. Press **Play** to hear your pattern loop. Multi-channel sequencing (A/B/C/D) is fully supported, allowing each bank to have its own independent sounds and sequences.
+5. Press **Play** to hear your pattern loop. Multi-channel sequencing (A/B/C/D) is fully supported.
+
+### Minimalist Step Visualization
+To maximize clarity on mobile screens, active steps display parameters visually instead of text:
+- **Length Bar (Bottom)**: A thin green bar at the bottom of each step shows relative length.
+- **Pitch Bar (Right Side)**: A thin vertical bar on the right indicates pitch offset.
+  - **Cyan (Up)**: Positive pitch shift.
+  - **Orange (Down)**: Negative pitch shift.
+- The step number is subtly shown in the top-right corner at reduced opacity.
 
 ---
 

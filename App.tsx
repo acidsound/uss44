@@ -150,12 +150,8 @@ const App: React.FC = () => {
         }
 
         if (mode === AppMode.SEQUENCE) {
-          if (isEditMode) {
-            setSelectedStepIndex(padIdx);
-          } else {
-            toggleStep(currentChannel, selectedPadIndex, padIdx);
-            setSelectedStepIndex(padIdx);
-          }
+          // Keyboard shortcuts disabled in Sequence mode per user request
+          return;
         } else if (isEditMode) {
           selectPad(padIdx);
         } else {
@@ -292,7 +288,8 @@ const App: React.FC = () => {
     const secondsPerBeat = 60.0 / bpmRef.current;
     const stepTime = 0.25 * secondsPerBeat;
     nextNoteTimeRef.current += stepTime;
-    currentStepRef.current = (currentStepRef.current + 1) % STEPS_PER_BAR;
+    const { stepCount } = useSequencerStore.getState();
+    currentStepRef.current = (currentStepRef.current + 1) % stepCount;
     setStep(currentStepRef.current);
   };
 
@@ -363,125 +360,241 @@ const App: React.FC = () => {
         />
       )}
 
-      <header id="app-header" className={`${isLandscape ? 'w-12 h-full border-r' : 'h-12 border-b'} flex-none border-zinc-800 bg-zinc-900/50 backdrop-blur-md flex ${isLandscape ? 'flex-col' : 'flex-row'} items-center justify-between z-30 px-3`}>
-        <button
-          id="header-logo"
-          onClick={toggleUltraSampleMode}
-          className={`flex flex-row items-center gap-1 cursor-pointer group active:scale-95 transition-transform ${isUltraSampleMode ? 'scale-110' : ''}`}
-        >
-          {isUltraSampleMode ? (
-            <Mic className="w-5 h-5 text-retro-accent animate-pulse shadow-[0_0_10px_#ff1e56]" />
+      <header id="app-header" className="flex-none z-30 flex flex-col bg-zinc-900/50 backdrop-blur-md border-b border-zinc-800">
+        <div className={`flex ${isLandscape ? 'flex-col h-full border-r border-zinc-800 w-12 absolute left-0 top-0 items-center py-2' : 'flex-row h-12 items-center px-3 justify-between'}`}>
+          {/* Top Header Content (Logo, LCD, Actions) that was previously direct children of header */}
+          {isLandscape ? (
+            /* Landscape Header Layout (Vertical Sidebar) */
+            <>
+              <button
+                id="header-logo"
+                onClick={toggleUltraSampleMode}
+                className={`flex flex-col items-center gap-1 cursor-pointer group active:scale-95 transition-transform ${isUltraSampleMode ? 'scale-110' : ''}`}
+              >
+                {isUltraSampleMode ? (
+                  <Mic className="w-5 h-5 text-retro-accent animate-pulse shadow-[0_0_10px_#ff1e56]" />
+                ) : (
+                  <Activity className="w-5 h-5 text-retro-accent group-hover:text-white transition-colors" />
+                )}
+              </button>
+
+              {/* Mode Selector Buttons (Landscape) */}
+              <div id="mode-selector-landscape" className="flex flex-col items-center gap-1 mt-4">
+                <button
+                  id="mode-dig-btn-l"
+                  onClick={() => setMode(AppMode.SAMPLE)}
+                  className={`w-10 h-8 flex items-center justify-center text-[7px] font-extrabold uppercase transition-all tracking-wider rounded ${mode === AppMode.SAMPLE ? 'bg-retro-accent text-white' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'}`}
+                  title="Dig Library"
+                >
+                  DIG
+                </button>
+                <button
+                  id="mode-perform-btn-l"
+                  onClick={() => {
+                    setIsEditMode(!isEditMode);
+                    if (mode === AppMode.SAMPLE) setMode(AppMode.PERFORM);
+                  }}
+                  className={`w-10 h-8 flex items-center justify-center text-[7px] font-extrabold uppercase transition-all tracking-wider rounded ${!isEditMode ? 'bg-zinc-800/80 text-white' : 'bg-retro-accent text-white shadow-inner'}`}
+                  title={isEditMode ? 'Edit Mode' : 'Perform Mode'}
+                >
+                  {isEditMode ? 'EDIT' : 'PERF'}
+                </button>
+                <button
+                  id="mode-sequence-btn-l"
+                  onClick={() => setMode(mode === AppMode.SEQUENCE ? AppMode.PERFORM : AppMode.SEQUENCE)}
+                  className={`w-10 h-8 flex flex-col items-center justify-center transition-all rounded ${mode === AppMode.SEQUENCE ? 'bg-retro-accent text-white shadow-lg' : 'bg-black/20 text-zinc-500 hover:text-zinc-300'}`}
+                  title="Sequence Mode"
+                >
+                  <span className="text-[6px] uppercase font-extrabold tracking-tighter">SEQ</span>
+                  <span className={`text-[8px] font-extrabold ${mode === AppMode.SEQUENCE ? 'text-white' : 'text-retro-accent'}`}>{currentStep > -1 ? currentStep + 1 : '--'}</span>
+                </button>
+                <button
+                  id="transport-play-btn-l"
+                  onClick={togglePlay}
+                  className={`w-10 h-8 flex items-center justify-center transition-all rounded ${isPlaying ? 'bg-emerald-600 text-white animate-pulse' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}
+                  title={isPlaying ? 'Stop' : 'Play'}
+                >
+                  {isPlaying ? <Square size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
+                </button>
+              </div>
+
+              {/* Compact LCD (Landscape) */}
+              <div id="header-lcd-landscape" className="flex flex-col items-center gap-1 mt-4 bg-black/60 rounded-lg border border-white/5 py-2 px-1 text-[8px] text-retro-accent font-extrabold uppercase">
+                <button
+                  id="lcd-bpm-l"
+                  onClick={() => setShowBpmModal(true)}
+                  className="flex flex-col items-center hover:bg-white/10 p-1 rounded transition-colors active:scale-95"
+                  title="Edit BPM"
+                >
+                  <span className="text-zinc-500 text-[6px] tracking-widest">BPM</span>
+                  <span className="text-white text-[10px]">{bpm}</span>
+                </button>
+                <button
+                  id="lcd-channel-l"
+                  onClick={() => setChannel(currentChannel === 'A' ? 'B' : currentChannel === 'B' ? 'C' : currentChannel === 'C' ? 'D' : 'A')}
+                  className="flex flex-col items-center hover:bg-white/10 p-1 rounded transition-colors active:scale-95"
+                  title="Switch Channel"
+                >
+                  <span className="text-zinc-500 text-[6px] tracking-widest">CH</span>
+                  <span className="text-white text-[10px]">{currentChannel}</span>
+                </button>
+                <div className="flex flex-col items-center p-1">
+                  <span className="text-zinc-500 text-[6px] tracking-widest">PAD</span>
+                  <span className="text-white text-[10px]">{parseInt(selectedPadId.split('-')[1]) + 1}</span>
+                </div>
+              </div>
+
+              {/* Rotated Visualizer (Landscape) */}
+              <div id="header-visualizer-landscape" className="mt-4 w-10 h-24 relative overflow-hidden opacity-60">
+                <div className="absolute inset-0 origin-center rotate-90 scale-[2]">
+                  <Visualizer />
+                </div>
+              </div>
+
+              <div className="flex-1" />
+
+              <div id="header-actions" className="flex flex-col items-center gap-4">
+                <button
+                  id="header-settings-btn"
+                  onClick={() => setShowSettings(true)}
+                  className="p-2 text-zinc-400 hover:text-white transition-all duration-300 active:scale-95"
+                >
+                  <Menu size={20} />
+                </button>
+              </div>
+            </>
           ) : (
-            <Activity className="w-5 h-5 text-retro-accent group-hover:text-white transition-colors" />
+            /* Portrait/Top Header Layout */
+            <>
+              <button
+                id="header-logo"
+                onClick={toggleUltraSampleMode}
+                className={`flex flex-row items-center gap-1 cursor-pointer group active:scale-95 transition-transform ${isUltraSampleMode ? 'scale-110' : ''}`}
+              >
+                {isUltraSampleMode ? (
+                  <Mic className="w-5 h-5 text-retro-accent animate-pulse shadow-[0_0_10px_#ff1e56]" />
+                ) : (
+                  <Activity className="w-5 h-5 text-retro-accent group-hover:text-white transition-colors" />
+                )}
+                <h1 className="text-base font-extrabold tracking-tighter text-white">USS<span className="text-retro-accent">44</span></h1>
+              </button>
+
+              <div id="header-lcd" className="flex-1 max-w-md mx-6 h-10 bg-black/60 rounded-lg border border-white/5 flex items-center px-4 justify-between font-sans text-[11px] text-retro-accent relative overflow-hidden shadow-inner">
+                <div className="z-10 flex flex-row gap-6 uppercase items-center text-center font-extrabold">
+                  <button
+                    id="lcd-bpm"
+                    onClick={() => setShowBpmModal(true)}
+                    className="flex flex-col items-center gap-0.5 hover:bg-white/10 p-1 rounded transition-colors active:scale-95"
+                  >
+                    <span className="text-zinc-500 text-[8px] tracking-widest">BPM</span>
+                    <span className="leading-none text-white">{bpm}</span>
+                  </button>
+
+                  <button
+                    id="lcd-channel"
+                    onClick={cycleChannel}
+                    className="flex flex-col items-center gap-0.5 hover:bg-white/10 p-1 rounded transition-colors active:scale-95"
+                  >
+                    <span className="text-zinc-500 text-[8px] tracking-widest">CH.</span>
+                    <span className="leading-none text-white">{currentChannel}</span>
+                  </button>
+
+                  <button
+                    id="lcd-pad"
+                    onClick={(e) => {
+                      setPadMenuAnchor(e.currentTarget.getBoundingClientRect());
+                      setShowPadMenu(true);
+                    }}
+                    className="flex flex-col items-center gap-0.5 hover:bg-white/10 p-1 rounded transition-colors active:scale-95"
+                  >
+                    <span className="text-zinc-500 text-[8px] tracking-widest">PAD</span>
+                    <span className="leading-none text-white">{selectedPadIndex + 1}</span>
+                  </button>
+                </div>
+                <div id="header-visualizer" className="absolute right-0 top-0 h-full w-32 opacity-50"><Visualizer /></div>
+              </div>
+
+              <div id="header-actions" className="flex flex-row items-center gap-4">
+                <button
+                  id="header-settings-btn"
+                  onClick={() => setShowSettings(true)}
+                  className="p-2 text-zinc-400 hover:text-white transition-all duration-300 active:scale-95"
+                >
+                  <Menu size={20} />
+                </button>
+              </div>
+            </>
           )}
-          {!isLandscape && <h1 className="text-base font-extrabold tracking-tighter text-white">USS<span className="text-retro-accent">44</span></h1>}
-        </button>
-
-        <div id="header-lcd" className={`${isLandscape ? 'flex-col h-auto w-full gap-4' : 'flex-1 max-w-md mx-6 h-10'} bg-black/60 rounded-lg border border-white/5 flex items-center px-4 justify-between font-sans text-[11px] text-retro-accent relative overflow-hidden shadow-inner`}>
-          <div className={`z-10 flex ${isLandscape ? 'flex-col' : 'flex-row'} gap-6 uppercase items-center text-center font-extrabold`}>
-
-            <button
-              id="lcd-bpm"
-              onClick={() => setShowBpmModal(true)}
-              className="flex flex-col items-center gap-0.5 hover:bg-white/10 p-1 rounded transition-colors active:scale-95"
-            >
-              <span className="text-zinc-500 text-[8px] tracking-widest">BPM</span>
-              <span className="leading-none text-white">{bpm}</span>
-            </button>
-
-            <button
-              id="lcd-channel"
-              onClick={cycleChannel}
-              className="flex flex-col items-center gap-0.5 hover:bg-white/10 p-1 rounded transition-colors active:scale-95"
-            >
-              <span className="text-zinc-500 text-[8px] tracking-widest">CH.</span>
-              <span className="leading-none text-white">{currentChannel}</span>
-            </button>
-
-            <button
-              id="lcd-pad"
-              onClick={(e) => {
-                setPadMenuAnchor(e.currentTarget.getBoundingClientRect());
-                setShowPadMenu(true);
-              }}
-              className="flex flex-col items-center gap-0.5 hover:bg-white/10 p-1 rounded transition-colors active:scale-95"
-            >
-              <span className="text-zinc-500 text-[8px] tracking-widest">PAD</span>
-              <span className="leading-none text-white">{selectedPadIndex + 1}</span>
-            </button>
-          </div>
-          {!isLandscape && <div id="header-visualizer" className="absolute right-0 top-0 h-full w-32 opacity-50"><Visualizer /></div>}
         </div>
 
-        <div id="header-actions" className={`flex ${isLandscape ? 'flex-col' : 'flex-row'} items-center gap-4`}>
-          <button
-            id="header-settings-btn"
-            onClick={() => setShowSettings(true)}
-            className="p-2 text-zinc-400 hover:text-white transition-all duration-300 active:scale-95"
-          >
-            <Menu size={20} />
-          </button>
-        </div>
-      </header>
-
-      <main id="app-main" className="flex-1 flex flex-col bg-retro-bg relative min-h-0 overflow-hidden">
-        <div id="mode-selector" className="flex-none h-6 border-b border-zinc-800/50 flex items-stretch bg-zinc-900/30">
-          <div className="flex-1 flex items-stretch border-r border-zinc-800/50">
-            <button
-              id="mode-dig-btn"
-              onClick={() => setMode(AppMode.SAMPLE)}
-              className={`flex-1 flex items-center justify-center text-[11px] font-extrabold uppercase transition-all tracking-wider ${mode === AppMode.SAMPLE ? 'bg-retro-accent text-white' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'}`}
-            >
-              Dig Library
-            </button>
-            <button
-              id="mode-perform-btn"
-              onClick={() => {
-                setIsEditMode(!isEditMode);
-                if (mode === AppMode.SAMPLE) setMode(AppMode.PERFORM);
-              }}
-              className={`flex-1 flex items-center justify-center text-[11px] font-extrabold uppercase transition-all tracking-wider ${!isEditMode ? 'bg-zinc-800/80 text-white' : 'bg-retro-accent text-white shadow-inner'}`}
-            >
-              {isEditMode ? 'Edit' : 'Perform'}
-            </button>
-          </div>
-          <div className="flex items-stretch">
-            <button
-              id="mode-sequence-btn"
-              onClick={() => setMode(mode === AppMode.SEQUENCE ? AppMode.PERFORM : AppMode.SEQUENCE)}
-              className={`w-20 border-r border-zinc-800/50 flex flex-row gap-2 items-center justify-center transition-all ${mode === AppMode.SEQUENCE ? 'bg-retro-accent text-white shadow-lg' : 'bg-black/20 text-zinc-500 hover:text-zinc-300'}`}
-            >
-              <span className="text-[9px] uppercase font-extrabold mb-0.5 tracking-tighter">Step</span>
-              <span className={`text-xs font-extrabold ${mode === AppMode.SEQUENCE ? 'text-white' : 'text-retro-accent'}`}>{currentStep > -1 ? currentStep + 1 : '--'}</span>
-            </button>
-            <button id="transport-play-btn" onClick={togglePlay} className={`w-16 flex items-center justify-center transition-all ${isPlaying ? 'bg-emerald-600 text-white animate-pulse' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}>
-              {isPlaying ? <Square size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
-            </button>
-          </div>
-        </div>
-
-        <div id="workspace-container" className={`flex-1 flex ${isLandscape ? 'flex-row' : 'flex-col'} overflow-hidden min-h-0`}>
-          <div id="pad-grid-container" className={`${isLandscape ? 'w-1/2 p-6' : 'w-full flex-none'} flex flex-col justify-center bg-retro-bg overflow-hidden relative`}>
-            <div className={`${isLandscape ? 'w-full h-full' : 'w-full max-w-[calc(100dvh-180px)] aspect-square p-2 mx-auto'}`}>
-              <PadGrid
-                appMode={mode}
-                isEditMode={isEditMode}
-                isUltraSampleMode={isUltraSampleMode}
-                onUltraRecordStart={handleUltraRecordStart}
-                onUltraRecordStop={handleUltraRecordStop}
-              />
+        {/* Mode Selector - Now Part of Header (Secondary Row) */}
+        {!isLandscape && (
+          <div id="mode-selector" className="flex-none h-6 border-t border-zinc-800/50 flex items-stretch bg-zinc-900/30">
+            <div className="flex-1 flex items-stretch border-r border-zinc-800/50">
+              <button
+                id="mode-dig-btn"
+                onClick={() => setMode(AppMode.SAMPLE)}
+                className={`flex-1 flex items-center justify-center text-[10px] font-extrabold uppercase transition-all tracking-wider ${mode === AppMode.SAMPLE ? 'bg-retro-accent text-white' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'}`}
+              >
+                Dig Library
+              </button>
+              <button
+                id="mode-perform-btn"
+                onClick={() => {
+                  setIsEditMode(!isEditMode);
+                  if (mode === AppMode.SAMPLE) setMode(AppMode.PERFORM);
+                }}
+                className={`flex-1 flex items-center justify-center text-[10px] font-extrabold uppercase transition-all tracking-wider ${!isEditMode ? 'bg-zinc-800/80 text-white' : 'bg-retro-accent text-white shadow-inner'}`}
+              >
+                {isEditMode ? 'Edit' : 'Perform'}
+              </button>
+            </div>
+            <div className="flex items-stretch">
+              <button
+                id="mode-sequence-btn"
+                onClick={() => setMode(mode === AppMode.SEQUENCE ? AppMode.PERFORM : AppMode.SEQUENCE)}
+                className={`w-20 border-r border-zinc-800/50 flex flex-row gap-2 items-center justify-center transition-all ${mode === AppMode.SEQUENCE ? 'bg-retro-accent text-white shadow-lg' : 'bg-black/20 text-zinc-500 hover:text-zinc-300'}`}
+              >
+                <span className="text-[8px] uppercase font-extrabold mb-0.5 tracking-tighter">Step</span>
+                <span className={`text-[10px] font-extrabold ${mode === AppMode.SEQUENCE ? 'text-white' : 'text-retro-accent'}`}>{currentStep > -1 ? currentStep + 1 : '--'}</span>
+              </button>
+              <button id="transport-play-btn" onClick={togglePlay} className={`w-16 flex items-center justify-center transition-all ${isPlaying ? 'bg-emerald-600 text-white animate-pulse' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}>
+                {isPlaying ? <Square size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" className="ml-0.5" />}
+              </button>
             </div>
           </div>
+        )}
+      </header>
 
-          <div id="bottom-panel" className={`${isLandscape ? 'w-1/2 border-l' : 'flex-1 border-t'} bg-retro-panel border-zinc-800/80 flex flex-col shadow-2xl z-20 overflow-hidden relative rounded-t-2xl sm:rounded-none`}>
-            {mode === AppMode.SEQUENCE ? (
-              <SequencePanel />
-            ) : (
-              <ParametersPanel isLandscape={isLandscape} isUltraSampleMode={isUltraSampleMode} />
-            )}
+      <main id="app-main" className={`flex-1 flex flex-col ${isLandscape ? 'pl-12' : ''} overflow-hidden bg-retro-bg min-h-0 relative`}>
+        {/* Workspace Main (Pad Grid) */}
+        <div id="workspace-container"
+          className="flex-1 flex flex-col items-center justify-center bg-retro-bg overflow-hidden relative min-h-0 w-full">
+          <div className={`${isLandscape ? 'w-full h-full p-2' : 'flex-1 aspect-square max-h-full max-w-full p-2 mx-auto'}`}>
+            <PadGrid
+              appMode={mode}
+              isEditMode={isEditMode}
+              isUltraSampleMode={isUltraSampleMode}
+              onUltraRecordStart={handleUltraRecordStart}
+              onUltraRecordStop={handleUltraRecordStop}
+            />
           </div>
         </div>
       </main>
+
+      {/* Footer / Bottom Panel (Independent from Main) */}
+      <footer id="app-footer"
+        className={`
+             ${isLandscape ? 'w-1/2 border-l h-full' : 'flex-none w-full border-t min-h-32 max-h-64'} 
+             bg-retro-panel border-zinc-800/80 flex flex-col shadow-2xl z-20 overflow-hidden relative
+           `}
+      >
+        {mode === AppMode.SEQUENCE ? (
+          <SequencePanel />
+        ) : (
+          <ParametersPanel isLandscape={isLandscape} isUltraSampleMode={isUltraSampleMode} />
+        )}
+      </footer>
 
       {/* iOS Audio Resume Prompt - Shown when AudioContext is suspended after background return */}
       {showAudioResumePrompt && (

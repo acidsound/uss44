@@ -88,6 +88,7 @@ export interface ProjectData {
   pads: Record<string, Omit<Pad, 'buffer' | 'isHeld' | 'lastTriggerTime' | 'lastTriggerDuration'>>;
   samples: Record<string, { name: string, dataBase64: string, waveform: number[] }>;
   patterns: Record<string, StepData[]>;
+  stepCount?: number;
   bpm: number;
 }
 

@@ -57,7 +57,7 @@ export const Knob: React.FC<KnobProps> = ({ label, value, min, max, defaultValue
   const degrees = -135 + (percentage * 270);
 
   return (
-    <div className="flex flex-col items-center gap-2 select-none w-20 touch-none">
+    <div className="flex flex-col items-center gap-1 select-none w-full touch-none">
       <div
         ref={knobRef}
         role="slider"

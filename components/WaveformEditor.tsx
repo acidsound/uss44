@@ -462,7 +462,7 @@ export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMod
   if (!isUltraSampleMode && !activePad?.sampleId && !storedWaveform) return <div id="waveform-empty-state" className="h-full w-full flex items-center justify-center bg-black"><span className="text-zinc-600 text-[9px] uppercase font-bold tracking-widest">Idle Buffer</span></div>;
 
   return (
-    <div id="waveform-editor" className="h-full flex flex-col min-h-0 bg-black">
+    <div id="waveform-editor" className="h-full flex flex-col min-h-32 bg-black">
       <div id="waveform-toolbar" className="h-7 border-b border-zinc-800 flex items-center justify-between px-1 bg-[#1a1a1c] flex-none">
         <div id="waveform-tools-left" className="flex items-stretch h-full overflow-x-auto no-scrollbar">
           {!isUltraSampleMode && (
@@ -542,7 +542,7 @@ export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMod
       <div
         id="waveform-canvas-container"
         ref={containerRef}
-        className={`px-4 flex-1 relative group overflow-hidden bg-black touch-none min-h-0 ${!isUltraSampleMode && selectionMode ? 'cursor-crosshair' : dragTarget === 'ruler' ? 'cursor-col-resize' : dragTarget === 'doubleTapCrop' ? 'cursor-crosshair' : dragTarget === 'scroll' ? 'cursor-grabbing' : 'cursor-grab'}`}
+        className={`px-4 flex-1 relative group overflow-hidden bg-black touch-none min-h-32 ${!isUltraSampleMode && selectionMode ? 'cursor-crosshair' : dragTarget === 'ruler' ? 'cursor-col-resize' : dragTarget === 'doubleTapCrop' ? 'cursor-crosshair' : dragTarget === 'scroll' ? 'cursor-grabbing' : 'cursor-grab'}`}
         onMouseDown={(e) => startDragging(e.clientX, e.clientY)}
         onMouseMove={(e) => moveDragging(e.clientX, e.clientY)}
         onMouseUp={handleDragEnd}
@@ -551,7 +551,7 @@ export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMod
         onTouchMove={(e) => moveDragging(e.touches[0].clientX, e.touches[0].clientY)}
         onTouchEnd={handleDragEnd}
       >
-        <canvas id="waveform-canvas" ref={canvasRef} className="w-full h-full block" />
+        <canvas id="waveform-canvas" ref={canvasRef} className="w-full h-full block min-h-32" />
       </div>
     </div>
   );

@@ -47,8 +47,7 @@ export const PadGrid: React.FC<PadGridProps> = ({
       handlePadEnd(interactionId);
     }
 
-    // Guard: Only proceed with selection/triggering if the index is valid (0-15)
-    if (idx < 0 || idx > 15) return;
+    if (idx < 0 || idx >= gridSize) return;
 
     if (isCloneMode) {
       executeClone(idx);
@@ -104,6 +103,15 @@ export const PadGrid: React.FC<PadGridProps> = ({
   };
 
   const containerRef = useRef<HTMLDivElement>(null);
+
+  /* Hook logic */
+  const { stepCount } = useSequencerStore();
+
+  // Calculate grid size early for dependency usage
+  const gridSize = isSequenceMode ? stepCount : 16;
+
+  /* Touch Handlers */
+  // ... (previous logic)
 
   useEffect(() => {
     const onWindowMouseUp = () => {
@@ -171,16 +179,49 @@ export const PadGrid: React.FC<PadGridProps> = ({
       container.removeEventListener('touchend', onTouchEnd);
       container.removeEventListener('touchcancel', onTouchEnd);
     };
-  }, [currentChannel, selectedPadIndex, appMode, isEditMode, isSequenceMode, isUltraSampleMode, isCloneMode, onUltraRecordStart, onUltraRecordStop, executeClone, selectPad]);
+  }, [currentChannel, selectedPadIndex, appMode, isEditMode, isSequenceMode, isUltraSampleMode, isCloneMode, onUltraRecordStart, onUltraRecordStop, executeClone, selectPad, stepCount, gridSize]);
+
+  const gridClass = gridSize === 64 ? 'grid-cols-8 grid-rows-8' : 'grid-cols-4 grid-rows-4';
+
+  // Helper to distinguish 4x4 blocks in 64-step mode (Quadrant view)
+  const getBlockStyles = (index: number) => {
+    if (gridSize !== 64) return '';
+    const classes = [];
+
+    const row = Math.floor(index / 8);
+    const col = index % 8;
+
+    // Quadrant visual separation (Split into four 4x4 regions)
+    if (col === 3) classes.push('mr-1'); // Vertical gap
+    if (row === 3) classes.push('mb-1'); // Horizontal gap
+
+    // Quadrant Coloring
+    const qRow = row < 4 ? 0 : 1;
+    const qCol = col < 4 ? 0 : 1;
+    const qIdx = qRow * 2 + qCol;
+
+    // Q0 (TL): Default
+    if (qIdx > 0) {
+      classes.push("after:content-[''] after:absolute after:inset-0 after:pointer-events-none");
+      // Q1 (TR): Blue tint
+      if (qIdx === 1) classes.push('after:bg-sky-500/10');
+      // Q2 (BL): Purple tint
+      if (qIdx === 2) classes.push('after:bg-purple-500/10');
+      // Q3 (BR): Emerald tint
+      if (qIdx === 3) classes.push('after:bg-emerald-500/10');
+    }
+
+    return classes.join(' ');
+  };
 
   return (
     <>
       <div
         ref={containerRef}
         id="pad-grid"
-        className="grid grid-cols-4 grid-rows-4 gap-2 w-full h-full touch-none"
+        className={`grid ${gridClass} gap-2 w-full h-full touch-none`}
       >
-        {Array.from({ length: 16 }).map((_, idx) => {
+        {Array.from({ length: gridSize }).map((_, idx) => {
           const pad = pads[`${currentChannel}-${idx}`];
 
           // Sequence Mode: Grid represents 16 Steps for the SELECTED pad
@@ -297,6 +338,7 @@ export const PadGrid: React.FC<PadGridProps> = ({
 
           // Opacity / Grayscale
           const isDimmed = !isSequenceMode && !hasSample && !isUltraSampleMode && !isCloneMode;
+          const blockStyle = getBlockStyles(idx);
 
           return (
             <button
@@ -310,7 +352,7 @@ export const PadGrid: React.FC<PadGridProps> = ({
               style={stepBorderEffect}
               className={`
                 relative transition-all duration-75 flex flex-col items-center justify-center overflow-hidden rounded-xl
-                border-2 active:shadow-none active:translate-x-[2px] active:translate-y-[2px]
+                border active:shadow-none active:translate-x-[2px] active:translate-y-[2px]
                 w-full h-full min-h-0 min-w-0
                 ${bgClass} ${borderClass} ${shadowClass} ${ringClass}
                 ${(isDimmed || isEffectivelySilenced) ? 'opacity-30 grayscale' : 'opacity-100'}
@@ -318,6 +360,7 @@ export const PadGrid: React.FC<PadGridProps> = ({
                 ${isHeldLocally && !isSequenceMode && !isCloneMode ? 'translate-x-[1px] translate-y-[1px] shadow-none brightness-110' : ''}
                 ${!isSequenceMode && !isUltraSampleMode ? 'shadow-[4px_4px_0_0_rgba(0,0,0,0.4)]' : ''}
                 ${isCloneMode ? 'cursor-copy' : ''}
+                ${blockStyle}
               `}
             >
               {/* Solo/Mute Indicators */}
@@ -354,8 +397,8 @@ export const PadGrid: React.FC<PadGridProps> = ({
               )}
 
               <div className="flex flex-col items-center w-full px-2 pointer-events-none z-10 min-h-0 min-w-0">
-                <span className={`font-extrabold text-[11px] uppercase tracking-tighter mb-1 ${isSelected || isActiveStep || isUltraSampleMode || isHeldLocally || isTriggeredBySeq || isPlayhead || isCloneMode ? 'text-white' : 'text-zinc-500'}`}>
-                  {isSequenceMode ? `S${idx + 1}` : `PAD ${idx + 1}`}
+                <span className={`font-extrabold ${isSequenceMode ? 'text-[8px] absolute top-1 right-1 opacity-40' : 'text-[11px] mb-1'} uppercase tracking-tighter ${isSelected || isActiveStep || isUltraSampleMode || isHeldLocally || isTriggeredBySeq || isPlayhead || isCloneMode ? 'text-white' : 'text-zinc-500'}`}>
+                  {isSequenceMode ? idx + 1 : `PAD ${idx + 1}`}
                 </span>
 
                 {!isSequenceMode && pad?.sampleId && samples[pad.sampleId]?.name && (
@@ -376,10 +419,30 @@ export const PadGrid: React.FC<PadGridProps> = ({
                   </span>
                 )}
 
+                {/* Pitch indicator (Vertical Line on right) */}
+                {isSequenceMode && stepData?.active && stepData.pitch !== 0 && (
+                  <div className="absolute top-2 bottom-5 right-1.5 w-[3px] bg-white/5 rounded-full pointer-events-none overflow-hidden">
+                    <div
+                      className={`absolute left-0 w-full rounded-full ${stepData.pitch > 0 ? 'bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.8)]' : 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]'}`}
+                      style={{
+                        bottom: '50%',
+                        height: `${Math.min(50, Math.abs(stepData.pitch / 48) * 100)}%`,
+                        transformOrigin: 'bottom',
+                        transform: stepData.pitch > 0 ? 'scaleY(1)' : 'scaleY(-1)'
+                      }}
+                    />
+                  </div>
+                )}
+
                 {isSequenceMode && stepData?.active && (
-                  <div className="flex flex-col items-center mt-1 w-full gap-0.5">
-                    <span className="text-[8px] font-extrabold text-white leading-none">VEL:{Math.round(stepData.velocity)}</span>
-                    {stepData.pitch !== 0 && <span className="text-[8px] font-extrabold text-retro-accent leading-none">P:{Math.round(stepData.pitch)}</span>}
+                  <div className="absolute inset-x-0 bottom-0 flex flex-col items-center pointer-events-none">
+                    {/* Length bar */}
+                    <div className="w-full h-[3px] bg-white/10">
+                      <div
+                        className="h-full bg-emerald-400/40"
+                        style={{ width: `${Math.min(100, (stepData.length / 16) * 100)}%` }}
+                      />
+                    </div>
                   </div>
                 )}
               </div>

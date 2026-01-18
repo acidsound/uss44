@@ -11,12 +11,19 @@ interface SequencerState {
   selectedStepIndex: number; // The step currently being edited in SEQUENCE mode
   patterns: Record<string, StepData[]>; // Key: "Channel-PadIndex" (e.g. "A-0")
 
+  // State to track last modified step settings
+  lastStepSettings: Omit<StepData, 'active'>;
+
+  // Actions
   setBpm: (bpm: number) => void;
   togglePlay: () => void;
   setStep: (step: number) => void;
   setSelectedStepIndex: (index: number) => void;
   toggleStep: (channel: string, padIndex: number, stepIndex: number) => void;
   updateStepData: (channel: string, padIndex: number, stepIndex: number, updates: Partial<StepData>) => void;
+
+  stepCount: number;
+  setStepCount: (count: number) => void;
 
   initSequencer: () => Promise<void>;
   resetSequencer: () => void;
@@ -35,7 +42,15 @@ export const useSequencerStore = create<SequencerState>((set, get) => ({
   isPlaying: false,
   currentStep: -1,
   selectedStepIndex: 0,
+  stepCount: 16,
   patterns: {},
+
+  // Default last settings
+  lastStepSettings: {
+    velocity: 127,
+    pitch: 0,
+    length: 1.0
+  },
 
   initSequencer: async () => {
     await dbService.init();
@@ -49,11 +64,18 @@ export const useSequencerStore = create<SequencerState>((set, get) => ({
     }
     const storedBpm = await dbService.getMetadata('bpm');
     if (storedBpm) set({ bpm: storedBpm });
+
+    // Load step count
+    const storedStepCount = await dbService.getMetadata('stepCount');
+    if (storedStepCount && (storedStepCount === 16 || storedStepCount === 64)) {
+      set({ stepCount: storedStepCount });
+    }
   },
 
   resetSequencer: () => {
-    set({ patterns: {}, currentStep: -1, bpm: 110 });
+    set({ patterns: {}, currentStep: -1, bpm: 110, stepCount: 16 });
     dbService.saveMetadata('bpm', 110);
+    dbService.saveMetadata('stepCount', 16);
   },
 
   setPatterns: (patterns) => {
@@ -65,6 +87,11 @@ export const useSequencerStore = create<SequencerState>((set, get) => ({
     dbService.saveMetadata('bpm', bpm);
   },
 
+  setStepCount: (stepCount) => {
+    set({ stepCount });
+    dbService.saveMetadata('stepCount', stepCount);
+  },
+
   togglePlay: () => set(state => ({ isPlaying: !state.isPlaying })),
 
   setStep: (step) => set({ currentStep: step }),
@@ -73,21 +100,66 @@ export const useSequencerStore = create<SequencerState>((set, get) => ({
 
   toggleStep: (channel, padIndex, stepIndex) => {
     const key = `${channel}-${padIndex}`;
-    const { patterns } = get();
-    const track = patterns[key] || Array.from({ length: STEPS_PER_BAR }, createDefaultStep);
-    const newTrack = track.map((s, i) => i === stepIndex ? { ...s, active: !s.active } : s);
+    const { patterns, stepCount, lastStepSettings } = get();
 
-    set({ patterns: { ...patterns, [key]: newTrack } });
-    dbService.saveSequence(key, newTrack);
+    // Ensure track exists and is long enough
+    let track = patterns[key] ? [...patterns[key]] : [];
+    const neededLength = Math.max(stepCount, stepIndex + 1);
+
+    if (track.length < neededLength) {
+      const missing = neededLength - track.length;
+      track = [...track, ...Array.from({ length: missing }, createDefaultStep)];
+    }
+
+    // Toggle logic
+    const willBeActive = !track[stepIndex].active;
+
+    // If activating, apply last used settings
+    if (willBeActive) {
+      track[stepIndex] = {
+        ...track[stepIndex],
+        active: true,
+        ...lastStepSettings
+      };
+    } else {
+      track[stepIndex] = { ...track[stepIndex], active: false };
+    }
+
+    set({ patterns: { ...patterns, [key]: track } });
+    dbService.saveSequence(key, track);
   },
 
   updateStepData: (channel, padIndex, stepIndex, updates) => {
     const key = `${channel}-${padIndex}`;
-    const { patterns } = get();
-    const track = patterns[key] || Array.from({ length: STEPS_PER_BAR }, createDefaultStep);
-    const newTrack = track.map((s, i) => i === stepIndex ? { ...s, ...updates } : s);
+    const { patterns, stepCount, lastStepSettings } = get();
 
-    set({ patterns: { ...patterns, [key]: newTrack } });
-    dbService.saveSequence(key, newTrack);
+    let track = patterns[key] ? [...patterns[key]] : [];
+    const neededLength = Math.max(stepCount, stepIndex + 1);
+
+    if (track.length < neededLength) {
+      const missing = neededLength - track.length;
+      track = [...track, ...Array.from({ length: missing }, createDefaultStep)];
+    }
+
+    track[stepIndex] = { ...track[stepIndex], ...updates };
+
+    // Update lastStepSettings if relevant fields are changed
+    const newSettings = { ...lastStepSettings };
+    let hasChanges = false;
+
+    if (updates.velocity !== undefined) { newSettings.velocity = updates.velocity; hasChanges = true; }
+    if (updates.pitch !== undefined) { newSettings.pitch = updates.pitch; hasChanges = true; }
+    if (updates.length !== undefined) { newSettings.length = updates.length; hasChanges = true; }
+
+    if (hasChanges) {
+      set({
+        patterns: { ...patterns, [key]: track },
+        lastStepSettings: newSettings
+      });
+    } else {
+      set({ patterns: { ...patterns, [key]: track } });
+    }
+
+    dbService.saveSequence(key, track);
   }
 }));

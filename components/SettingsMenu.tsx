@@ -6,6 +6,7 @@ import {
   List, Speaker
 } from 'lucide-react';
 import { projectService, LibraryType } from '../services/projectService';
+import { useSequencerStore } from '../stores/sequencerStore';
 import { FileExplorer } from './FileExplorer';
 
 interface SettingsMenuProps {
@@ -17,6 +18,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onClose }) => {
   const [status, setStatus] = useState<string | null>(null);
   const [explorerConfig, setExplorerConfig] = useState<{ mode: 'SAVE' | 'LOAD', type: LibraryType } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { stepCount, setStepCount } = useSequencerStore();
 
   const handleAction = async (action: () => Promise<void>, successMsg: string) => {
     setLoading(true);
@@ -89,6 +91,30 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onClose }) => {
                 <span className="text-[8px] text-zinc-600 group-hover:text-red-400/70">Factory Reset</span>
               </div>
             </button>
+
+            <div className="h-px bg-white/5 my-1" />
+
+            {/* Sequence Length */}
+            <div className="flex items-center justify-between px-3 py-2 hover:bg-white/5 rounded-lg">
+              <div className="flex items-center gap-2">
+                <Music size={14} className="text-zinc-500" />
+                <span className="text-[10px] font-extrabold uppercase text-zinc-400">Step Length</span>
+              </div>
+              <div className="flex gap-1 bg-black/40 p-0.5 rounded-lg border border-white/5">
+                <button
+                  onClick={() => setStepCount(16)}
+                  className={`px-2 py-1 rounded text-[9px] font-bold transition-all ${stepCount === 16 ? 'bg-retro-accent text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                >
+                  16
+                </button>
+                <button
+                  onClick={() => setStepCount(64)}
+                  className={`px-2 py-1 rounded text-[9px] font-bold transition-all ${stepCount === 64 ? 'bg-retro-accent text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                >
+                  64
+                </button>
+              </div>
+            </div>
 
             <div className="h-px bg-white/5 my-1" />
 
