@@ -1,9 +1,9 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
-import { ZoomIn, ZoomOut, Scissors, Hash, Clock, MousePointer2, Magnet, Repeat, PlayCircle, Hand, Library, Mic } from 'lucide-react';
+import { ZoomIn, ZoomOut, Scissors, Hash, Clock, MousePointer2, Magnet, Repeat, PlayCircle, Hand, Library, Mic, Music } from 'lucide-react';
 import { usePadStore } from '../stores/padStore';
 import { useAudioStore } from '../stores/audioStore';
 import { useSequencerStore } from '../stores/sequencerStore';
-import { TriggerMode } from '../types';
+import { TriggerMode, AppMode } from '../types';
 import { detectBPM, calculateLoopBPM } from '../utils/audioUtils';
 
 interface WaveformEditorProps {
@@ -462,38 +462,38 @@ export const WaveformEditor: React.FC<WaveformEditorProps> = ({ isUltraSampleMod
   if (!isUltraSampleMode && !activePad?.sampleId && !storedWaveform) {
     return (
       <div id="waveform-empty-state" className="h-full w-full flex items-center justify-center p-2 bg-black/40">
-        <div className="w-full h-full min-h-32 flex flex-col items-center justify-center gap-6 border-2 border-dashed border-white/5 rounded-2xl bg-zinc-900/10">
+        <div className="w-full h-full min-h-32 flex flex-col items-center justify-center gap-6 border-2 border-dashed border-white/5 rounded-2xl bg-zinc-900/10 p-4">
           <div className="flex flex-col items-center gap-2 opacity-40">
-            <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center border border-white/5">
-              <Scissors size={20} className="text-zinc-500" />
+            <div className="w-11 h-11 rounded-full bg-zinc-800 flex items-center justify-center border border-white/5">
+              <Music size={18} className="text-zinc-500" />
             </div>
             <span className="text-zinc-500 text-[9px] font-black uppercase tracking-[0.2em]">
               Idle Buffer
             </span>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 w-full max-w-[320px] px-4">
+          <div className="flex flex-row gap-2.5 w-full max-w-[420px]">
             <button
               id="empty-state-browse"
-              onClick={() => setAppMode('SAMPLE' as any)}
-              className="flex-1 bg-zinc-800/80 hover:bg-zinc-700 text-white rounded-xl py-3 px-4 flex items-center justify-center gap-2 border border-white/5 transition-all active:scale-95 group"
+              onClick={() => setAppMode(AppMode.SAMPLE)}
+              className="flex-1 bg-zinc-800/80 hover:bg-zinc-700 text-white rounded-xl py-3 px-3 flex items-center justify-center gap-2 border border-white/5 transition-all active:scale-95 group overflow-hidden"
             >
-              <Library size={16} className="text-zinc-500 group-hover:text-retro-accent transition-colors" />
-              <div className="flex flex-col items-start leading-none gap-1">
-                <span className="text-[10px] font-black uppercase tracking-wider">Browse Library</span>
-                <span className="text-[7px] font-bold text-zinc-500 uppercase">1000+ Samples</span>
+              <Library size={16} className="text-zinc-500 group-hover:text-retro-accent transition-colors flex-none" />
+              <div className="flex flex-col items-start leading-none gap-1 min-w-0">
+                <span className="text-[9px] xs:text-[10px] font-black uppercase tracking-wider truncate w-full text-left">Library</span>
+                <span className="text-[7px] font-bold text-zinc-500 uppercase truncate w-full text-left">1000+ SAMPLES</span>
               </div>
             </button>
 
             <button
               id="empty-state-record"
               onClick={() => setRecordingModalOpen(true)}
-              className="flex-1 bg-zinc-800/80 hover:bg-retro-accent/10 hover:border-retro-accent/30 text-white rounded-xl py-3 px-4 flex items-center justify-center gap-2 border border-white/5 transition-all active:scale-95 group"
+              className="flex-1 bg-zinc-800/80 hover:bg-retro-accent/10 hover:border-retro-accent/30 text-white rounded-xl py-3 px-3 flex items-center justify-center gap-2 border border-white/5 transition-all active:scale-95 group overflow-hidden"
             >
-              <Mic size={16} className="text-zinc-500 group-hover:text-retro-accent transition-colors" />
-              <div className="flex flex-col items-start leading-none gap-1">
-                <span className="text-[10px] font-black uppercase tracking-wider">Pro Record</span>
-                <span className="text-[7px] font-bold text-zinc-500 uppercase">Input Capture</span>
+              <Mic size={16} className="text-zinc-500 group-hover:text-retro-accent transition-colors flex-none" />
+              <div className="flex flex-col items-start leading-none gap-1 min-w-0">
+                <span className="text-[9px] xs:text-[10px] font-black uppercase tracking-wider truncate w-full text-left">Record</span>
+                <span className="text-[7px] font-bold text-zinc-500 uppercase truncate w-full text-left">INPUT CAPTURE</span>
               </div>
             </button>
           </div>
