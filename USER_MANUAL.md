@@ -140,6 +140,10 @@ Export your work at different levels of complexity:
   - **Sequence Clear**: Wipes all patterns while keeping your BPM and Step Length settings.
   - **Sound Kit Clear**: Resets all pads and clears loaded samples.
   - **Project Song Clear**: Resets both sound and sequence for a completely empty project.
+- **Render Audio (Mixdown)**: Found in the Settings menu. This high-performance feature renders your entire pattern (all channels/pads) into a single high-quality WAV file using an `OfflineAudioContext`.
+  - **Preview**: Listen to the mixed-down result and see its waveform.
+  - **Download**: Save the result as a `.wav` file to your device.
+  - **Load to Pad**: Instantly assign the rendered audio to your currently selected pad for further resampling.
 - **Stop Reset**: When the sequencer is stopped, all waveform playheads reset to their start positions.
 
 ---

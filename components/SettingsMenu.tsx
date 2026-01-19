@@ -3,7 +3,7 @@ import React, { useRef, useState } from 'react';
 import {
   Trash2, Download, Upload, Music, Disc, FileJson,
   Save, FolderOpen, RefreshCw, X, AlertTriangle, Loader2,
-  List, Speaker
+  List, Speaker, Activity
 } from 'lucide-react';
 import { projectService, LibraryType } from '../services/projectService';
 import { usePadStore } from '../stores/padStore';
@@ -12,9 +12,10 @@ import { FileExplorer } from './FileExplorer';
 
 interface SettingsMenuProps {
   onClose: () => void;
+  onOpenRender: () => void;
 }
 
-export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onClose }) => {
+export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onClose, onOpenRender }) => {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [explorerConfig, setExplorerConfig] = useState<{ mode: 'SAVE' | 'LOAD', type: LibraryType } | null>(null);
@@ -218,6 +219,24 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onClose }) => {
                 </button>
               </div>
             </div>
+
+            <div className="h-px bg-white/5 my-1" />
+
+            {/* Render Audio */}
+            <button
+              disabled={loading}
+              onClick={() => {
+                onClose();
+                onOpenRender();
+              }}
+              className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-retro-accent/20 text-zinc-300 hover:text-retro-accent rounded-lg transition-colors group"
+            >
+              <Activity size={14} className="group-hover:text-retro-accent" />
+              <div className="flex flex-col">
+                <span className="text-[10px] font-extrabold uppercase">Render Audio</span>
+                <span className="text-[7px] text-zinc-600 uppercase">Mixdown patterns to WAV / Pad sample</span>
+              </div>
+            </button>
 
             <div className="h-px bg-white/5 my-1" />
 

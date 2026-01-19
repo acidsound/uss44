@@ -19,6 +19,7 @@ import { BpmModal } from './components/BpmModal';
 import { SettingsMenu } from './components/SettingsMenu';
 import { PadMenu } from './components/PadMenu';
 import { RecordingModal } from './components/RecordingModal';
+import { RenderModal } from './components/RenderModal';
 import { AppMode, ChannelId } from './types';
 import { STEPS_PER_BAR } from './constants';
 
@@ -35,6 +36,7 @@ const App: React.FC = () => {
   const [isUltraSampleMode, setIsUltraSampleMode] = useState(false);
   const [showBpmModal, setShowBpmModal] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showRenderModal, setShowRenderModal] = useState(false);
   const [showPadMenu, setShowPadMenu] = useState(false);
   const [padMenuAnchor, setPadMenuAnchor] = useState<DOMRect | undefined>(undefined);
 
@@ -367,7 +369,16 @@ const App: React.FC = () => {
       {!initialized && <InitOverlay />}
       {isHydrating && <LoadingOverlay />}
       {showBpmModal && <BpmModal onClose={() => setShowBpmModal(false)} />}
-      {showSettings && <SettingsMenu onClose={() => setShowSettings(false)} />}
+      {showSettings && (
+        <SettingsMenu
+          onClose={() => setShowSettings(false)}
+          onOpenRender={() => setShowRenderModal(true)}
+        />
+      )}
+
+      {showRenderModal && (
+        <RenderModal onClose={() => setShowRenderModal(false)} />
+      )}
       <PadMenu
         padIndex={selectedPadIndex}
         isOpen={showPadMenu}

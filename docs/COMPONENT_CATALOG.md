@@ -26,6 +26,8 @@
 | [Visualizer](#visualizer) | `Visualizer.tsx` | 오디오 시각화 |
 | [LoadingOverlay](#loadingoverlay) | `LoadingOverlay.tsx` | 로딩 오버레이 |
 | [InitOverlay](#initoverlay) | `InitOverlay.tsx` | 앱 초기화 오버레이 |
+| [RenderModal](#rendermodal) | `RenderModal.tsx` | 프로젝트 믹스다운 및 결과물 관리 |
+| [WaveformCanvas](#waveformcanvas) | `WaveformCanvas.tsx` | 공용 캔버스 기반 파형 렌더러 |
 
 ---
 
@@ -217,6 +219,7 @@ interface WaveformEditorProps {
 | 시작/끝 마커 드래그 | 샘플 재생 범위 설정 |
 | 스크롤 드래그 | 뷰포트 이동 |
 | 핀치/드래그 | 줌 인/아웃 |
+| 시간/샘플 룰러 | 상단 룰러 클릭으로 TIME/SAMPLES 모드 전환 |
 | 더블탭 크롭 | 더블탭 후 드래그로 범위 선택 |
 | Auto Crop | 무음 부분 자동 트림 |
 | Zero-Crossing Snap | 가장 가까운 0점에 스냅 |
@@ -474,6 +477,53 @@ components/LoadingOverlay.tsx
 
 ---
 
+## 📤 RenderModal
+
+전체 프로젝트 시퀀스를 하나의 WAV 오디오 파일로 믹스다운(Render)하는 모달입니다.
+
+### 위치
+```
+components/RenderModal.tsx
+```
+
+### 기능
+
+| 기능 | 설명 |
+|------|------|
+| Offline Render | `OfflineAudioContext`를 이용한 고속 믹스다운 |
+| Waveform Preview | 렌더링된 결과물의 전체 파형 시각화 |
+| Playback | 파형 위에서 재생 및 실시간 플레이헤드(재생 바) 표시 |
+| Ruler | 렌더링된 오디오 길이에 맞춘 시간 룰러 표시 |
+| Export | WAV 파일 다운로드 또는 특정 패드에 즉시 로드 |
+
+---
+
+## 📊 WaveformCanvas
+
+파형 시각화와 플레이헤드 표시를 담당하는 고성능 공용 컴포넌트입니다.
+
+### 위치
+```
+components/WaveformCanvas.tsx
+```
+
+### Props
+
+```typescript
+interface WaveformCanvasProps {
+    waveform: number[];           // 파형 데이터 (0~1)
+    buffer?: AudioBuffer | null;  // (옵션) 고해상도 렌더링용 버퍼
+    viewStart?: number;           // 뷰 시작 (0~1)
+    viewEnd?: number;             // 뷰 끝 (0~1)
+    playheadPosition?: number | null; // 재생 위치 (0~1)
+    showRuler?: boolean;          // 시간 룰러 표시 여부
+    duration?: number;            // 룰러 계산용 총 길이
+    color?: string;               // 파형 색상
+}
+```
+
+---
+
 ## 🚀 InitOverlay
 
 앱 초기화 (첫 터치) 대기 화면입니다.
@@ -523,5 +573,5 @@ className={`${isLandscape ? 'flex-row' : 'flex-col'}`}
 
 ---
 
-**문서 버전**: 1.0.0  
+**문서 버전**: 1.1.0  
 **최종 수정**: 2026-01-19

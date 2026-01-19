@@ -12,6 +12,9 @@
 
 ### Added
 - System 메뉴 내 개별 삭제(Clear) 기능 추가 (Sequence, Sound Kit, Project Song)
+- 프로젝트 전체를 오디오로 믹스다운하는 **Render Audio (WAV)** 기능 추가
+- 렌더링된 오디오를 파일로 저장하거나 현재 패드에 즉시 로드하는 기능 추가
+- 렌더링 결과 미리보기 파형에 실시간 재생 바(Playhead) 및 시간 룰러(Ruler) 표시 추가
 - 리스트 및 패널 영역 가독성 보장을 위한 스크롤바 레이아웃 일관성 (`scrollbar-gutter: stable`) 적용
 
 ### Changed
