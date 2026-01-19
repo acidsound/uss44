@@ -278,6 +278,13 @@ className="w-full max-w-sm bg-[#121214] border border-white/10
            flex flex-col gap-4 p-6"
 ```
 
+#### 가변 너비 메뉴 (Flexible Menu Width)
+모바일 Portrait에서의 텍스트 가독성을 보장하기 위해 고정 너비 대신 **콘텐츠 부합형 너비**를 권장합니다.
+- `w-fit`: 내용물에 따라 늘어나도록 설정
+- `min-w-[280px]`: 최소 너비 보장
+- `max-w-[calc(100vw-2rem)]`: 화면 밖으로 나가지 않도록 제한
+- `whitespace-nowrap`: 중요 텍스트(레이블 등)의 의도치 않은 줄바꿈 방지
+
 #### 모달 헤더
 ```typescript
 <div className="flex justify-between items-center mb-2">

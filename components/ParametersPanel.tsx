@@ -87,7 +87,7 @@ export const ParametersPanel: React.FC<ParametersPanelProps> = ({ isLandscape, i
               <WaveformEditor isUltraSampleMode={isUltraSampleMode} />
             </div>
             {!isUltraSampleMode && (
-              <div id="landscape-knobs" className="h-1/3 min-h-[140px] bg-zinc-900/10 overflow-y-auto grid grid-cols-5 gap-2 p-2 place-items-center content-center">
+              <div id="landscape-knobs" className="h-1/3 min-h-[140px] bg-zinc-900/10 overflow-y-auto grid grid-cols-5 gap-2 p-2 place-items-center content-center" style={{ scrollbarGutter: 'stable' }}>
                 <Knob label="Pitch" min={0.1} max={4.0} value={activePad?.pitch || 1} defaultValue={1} onChange={(v) => updatePad(selectedPadIndex, { pitch: v })} />
                 <Knob label="Gain" min={0} max={2.0} value={activePad?.volume || 1} defaultValue={1} onChange={(v) => updatePad(selectedPadIndex, { volume: v })} />
                 <Knob label="Pan" min={-1} max={1} value={activePad?.pan || 0} defaultValue={0} onChange={(v) => updatePad(selectedPadIndex, { pan: v })} />

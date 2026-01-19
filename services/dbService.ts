@@ -288,6 +288,18 @@ export class DbService {
     });
   }
 
+  async clearSoundKit(): Promise<void> {
+    await this.init();
+    if (!this.db) throw new Error("IndexedDB not initialized");
+    const tx = this.db.transaction([STORES.SAMPLES, STORES.PAD_CONFIGS], 'readwrite');
+    tx.objectStore(STORES.SAMPLES).clear();
+    tx.objectStore(STORES.PAD_CONFIGS).clear();
+    return new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
   // --- Sample Pack Management ---
 
   async saveSamplePack(pack: any): Promise<void> {

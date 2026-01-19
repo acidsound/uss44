@@ -6,6 +6,7 @@ import {
   List, Speaker
 } from 'lucide-react';
 import { projectService, LibraryType } from '../services/projectService';
+import { usePadStore } from '../stores/padStore';
 import { useSequencerStore } from '../stores/sequencerStore';
 import { FileExplorer } from './FileExplorer';
 
@@ -66,7 +67,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onClose }) => {
       )}
 
       <div className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-sm flex items-start justify-end p-4 animate-in fade-in duration-200" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-        <div className="w-64 bg-[#1e1e22] border border-white/10 rounded-xl shadow-2xl overflow-hidden mt-12 mr-2 animate-in slide-in-from-top-4 duration-200">
+        <div className="w-fit min-w-[280px] max-w-[calc(100vw-2rem)] bg-[#1e1e22] border border-white/10 rounded-xl shadow-2xl overflow-hidden mt-12 mr-2 animate-in slide-in-from-top-4 duration-200">
 
           <div className="px-4 py-3 border-b border-white/5 flex justify-between items-center bg-zinc-900/50">
             <span className="text-xs font-extrabold uppercase text-zinc-400 tracking-widest">System</span>
@@ -97,10 +98,10 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onClose }) => {
             {/* Sequence Length */}
             <div className="flex items-center justify-between px-3 py-2 hover:bg-white/5 rounded-lg">
               <div className="flex items-center gap-2">
-                <Music size={14} className="text-zinc-500" />
-                <span className="text-[10px] font-extrabold uppercase text-zinc-400">Step Length</span>
+                <Music size={14} className="text-zinc-500 flex-none" />
+                <span className="text-[10px] font-extrabold uppercase text-zinc-400 whitespace-nowrap">Step Length</span>
               </div>
-              <div className="flex gap-1 bg-black/40 p-0.5 rounded-lg border border-white/5">
+              <div className="flex gap-1 bg-black/40 p-0.5 rounded-lg border border-white/5 flex-none">
                 <button
                   onClick={() => setStepCount(16)}
                   className={`px-2 py-1 rounded text-[9px] font-bold transition-all ${stepCount === 16 ? 'bg-retro-accent text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
@@ -121,10 +122,10 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onClose }) => {
             {/* Sequence Operations */}
             <div className="flex items-center justify-between px-3 py-2 hover:bg-white/5 rounded-lg group">
               <div className="flex items-center gap-2">
-                <List size={14} className="text-zinc-500 group-hover:text-retro-accent" />
-                <span className="text-[10px] font-extrabold uppercase text-zinc-400">Sequence</span>
+                <List size={14} className="text-zinc-500 group-hover:text-retro-accent flex-none" />
+                <span className="text-[10px] font-extrabold uppercase text-zinc-400 whitespace-nowrap">Sequence</span>
               </div>
-              <div className="flex gap-1">
+              <div className="flex gap-1 flex-none items-center">
                 <button disabled={loading} onClick={() => openExplorer('LOAD', 'SEQUENCE')} className="p-1.5 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded transition-colors" title="Open from Library">
                   <FolderOpen size={14} />
                 </button>
@@ -134,6 +135,19 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onClose }) => {
                 <button disabled={loading} onClick={() => handleAction(() => projectService.exportCurrentItem('SEQUENCE'), 'Sequence Exported')} className="p-1.5 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded transition-colors" title="Export as JSON">
                   <Download size={14} />
                 </button>
+                <div className="w-px h-3 bg-white/10 mx-1" />
+                <button
+                  disabled={loading}
+                  onClick={() => {
+                    if (confirm("Clear current sequence?")) {
+                      handleAction(() => projectService.clearSequence(), "Sequence Cleared");
+                    }
+                  }}
+                  className="p-1.5 hover:bg-red-500/20 text-zinc-500 hover:text-red-400 rounded transition-colors"
+                  title="Clear Sequence"
+                >
+                  <Trash2 size={13} />
+                </button>
               </div>
             </div>
 
@@ -142,10 +156,10 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onClose }) => {
             {/* Sound Operations */}
             <div className="flex items-center justify-between px-3 py-2 hover:bg-white/5 rounded-lg group">
               <div className="flex items-center gap-2">
-                <Speaker size={14} className="text-zinc-500 group-hover:text-retro-accent" />
-                <span className="text-[10px] font-extrabold uppercase text-zinc-400">Sound Kit</span>
+                <Speaker size={14} className="text-zinc-500 group-hover:text-retro-accent flex-none" />
+                <span className="text-[10px] font-extrabold uppercase text-zinc-400 whitespace-nowrap">Sound Kit</span>
               </div>
-              <div className="flex gap-1">
+              <div className="flex gap-1 flex-none items-center">
                 <button disabled={loading} onClick={() => openExplorer('LOAD', 'SOUND')} className="p-1.5 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded transition-colors" title="Open from Library">
                   <FolderOpen size={14} />
                 </button>
@@ -155,6 +169,19 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onClose }) => {
                 <button disabled={loading} onClick={() => handleAction(() => projectService.exportCurrentItem('SOUND'), 'Sound Exported')} className="p-1.5 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded transition-colors" title="Export as JSON">
                   <Download size={14} />
                 </button>
+                <div className="w-px h-3 bg-white/10 mx-1" />
+                <button
+                  disabled={loading}
+                  onClick={() => {
+                    if (confirm("Clear current sound kit?")) {
+                      handleAction(() => projectService.clearSound(), "Sound Kit Cleared");
+                    }
+                  }}
+                  className="p-1.5 hover:bg-red-500/20 text-zinc-500 hover:text-red-400 rounded transition-colors"
+                  title="Clear Sound Kit"
+                >
+                  <Trash2 size={13} />
+                </button>
               </div>
             </div>
 
@@ -163,10 +190,10 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onClose }) => {
             {/* Song Operations */}
             <div className="flex items-center justify-between px-3 py-2 hover:bg-white/5 rounded-lg group">
               <div className="flex items-center gap-2">
-                <Disc size={14} className="text-zinc-500 group-hover:text-retro-accent" />
-                <span className="text-[10px] font-extrabold uppercase text-zinc-400">Project Song</span>
+                <Disc size={14} className="text-zinc-500 group-hover:text-retro-accent flex-none" />
+                <span className="text-[10px] font-extrabold uppercase text-zinc-400 whitespace-nowrap">Project Song</span>
               </div>
-              <div className="flex gap-1">
+              <div className="flex gap-1 flex-none items-center">
                 <button disabled={loading} onClick={() => openExplorer('LOAD', 'SONG')} className="p-1.5 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded transition-colors" title="Open from Library">
                   <FolderOpen size={14} />
                 </button>
@@ -175,6 +202,19 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({ onClose }) => {
                 </button>
                 <button disabled={loading} onClick={() => handleAction(() => projectService.exportCurrentItem('SONG'), 'Song Exported')} className="p-1.5 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded transition-colors" title="Export as JSON">
                   <Download size={14} />
+                </button>
+                <div className="w-px h-3 bg-white/10 mx-1" />
+                <button
+                  disabled={loading}
+                  onClick={() => {
+                    if (confirm("Clear entire project song (Sound + Sequence)?")) {
+                      handleAction(() => projectService.clearSong(), "Project Cleared");
+                    }
+                  }}
+                  className="p-1.5 hover:bg-red-500/20 text-zinc-500 hover:text-red-400 rounded transition-colors"
+                  title="Clear Project"
+                >
+                  <Trash2 size={13} />
                 </button>
               </div>
             </div>

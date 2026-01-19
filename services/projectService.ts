@@ -46,11 +46,27 @@ class ProjectService {
 
     // Reset Stores to clean state
     resetPads();
-    resetSequencer();
+    resetSequencer(true);
 
     // Re-initialize to trigger default sample loading
     await initPads();
     await initSequencer();
+  }
+
+  async clearSong(): Promise<void> {
+    await dbService.clearAllData();
+    usePadStore.getState().resetPads();
+    useSequencerStore.getState().resetSequencer();
+  }
+
+  async clearSound(): Promise<void> {
+    await dbService.clearSoundKit();
+    usePadStore.getState().resetPads();
+  }
+
+  async clearSequence(): Promise<void> {
+    await dbService.clearSequences();
+    useSequencerStore.getState().resetSequencer();
   }
 
   // --- SERIALIZATION HELPERS ---

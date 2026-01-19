@@ -6,10 +6,20 @@
 
 ## [Unreleased]
 
+---
+
+## [1.2.0] - 2026-01-19
+
 ### Added
-- 디자인 시스템 가이드라인 문서
-- 컴포넌트 카탈로그, 상태 관리 문서, 오디오 엔진 문서
-- 개발 워크플로우 (.agent/workflows/develop.md)
+- System 메뉴 내 개별 삭제(Clear) 기능 추가 (Sequence, Sound Kit, Project Song)
+- 리스트 및 패널 영역 가독성 보장을 위한 스크롤바 레이아웃 일관성 (`scrollbar-gutter: stable`) 적용
+
+### Changed
+- SettingsMenu 레이아웃 개선: 모바일 Portrait 대응을 위한 가변 너비(`w-fit`) 적용
+- 개별 삭제(Clear) 시 사용자 설정(BPM, Step Length) 보존 로직 적용
+
+### Fixed
+- 모바일 Portrait 모드에서 SettingsMenu 텍스트 줄바꿈 문제 수정
 
 ---
 

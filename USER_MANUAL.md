@@ -136,6 +136,10 @@ Export your work at different levels of complexity:
   - **HALF (🐌)** / **DOUBLE (🐰)**: Quickly halve or double the current BPM.
   - **Precision TAP**: Tap the button to set tempo. Uses high-precision timing with visual feedback.
 - **Init All (Factory Reset)**: Found in the Settings menu. This will clear all active workspace data and restore the **Factory Default Sound Kit**, giving you a clean slate with classic sounds.
+- **Individual Clear Tools**: Next to the Export/Import icons in the Settings menu, you can find **Trash (Clear)** buttons for each section:
+  - **Sequence Clear**: Wipes all patterns while keeping your BPM and Step Length settings.
+  - **Sound Kit Clear**: Resets all pads and clears loaded samples.
+  - **Project Song Clear**: Resets both sound and sequence for a completely empty project.
 - **Stop Reset**: When the sequencer is stopped, all waveform playheads reset to their start positions.
 
 ---

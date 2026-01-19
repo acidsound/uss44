@@ -29,7 +29,7 @@ interface SequencerState {
   setStepCount: (count: number) => void;
 
   initSequencer: () => Promise<void>;
-  resetSequencer: () => void;
+  resetSequencer: (fullReset?: boolean) => void;
   setPatterns: (patterns: Record<string, StepData[]>) => void;
 }
 
@@ -76,10 +76,14 @@ export const useSequencerStore = create<SequencerState>((set, get) => ({
     }
   },
 
-  resetSequencer: () => {
-    set({ patterns: {}, currentStep: -1, bpm: 110, stepCount: 16 });
-    dbService.saveMetadata('bpm', 110);
-    dbService.saveMetadata('stepCount', 16);
+  resetSequencer: (fullReset = false) => {
+    if (fullReset) {
+      set({ patterns: {}, currentStep: -1, bpm: 110, stepCount: 16 });
+      dbService.saveMetadata('bpm', 110);
+      dbService.saveMetadata('stepCount', 16);
+    } else {
+      set({ patterns: {}, currentStep: -1 });
+    }
   },
 
   setPatterns: (patterns) => {

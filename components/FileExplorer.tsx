@@ -181,7 +181,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ mode, type, onClose,
         </div>
 
         {/* File List */}
-        <div className="flex-1 overflow-y-auto p-2 min-h-[300px] bg-black/20">
+        <div className="flex-1 overflow-y-auto p-2 min-h-[300px] bg-black/20" style={{ scrollbarGutter: 'stable' }}>
           {loading ? (
             <div className="h-full flex flex-col items-center justify-center text-retro-accent">
               <Loader2 className="w-8 h-8 animate-spin mb-2" />
