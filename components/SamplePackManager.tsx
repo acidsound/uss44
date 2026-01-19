@@ -154,7 +154,7 @@ export const SamplePackManager: React.FC<SamplePackManagerProps> = ({ onClose })
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                <div className="flex-1 overflow-y-auto p-4 space-y-2" style={{ scrollbarGutter: 'stable' }}>
                     {isAdding ? (
                         <div className="bg-retro-accent/5 border border-retro-accent/20 rounded-xl p-4 space-y-3 mb-2">
                             <input
