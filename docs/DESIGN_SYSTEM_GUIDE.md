@@ -173,6 +173,20 @@ useEffect(() => {
 
 ---
 
+### 스크롤바 레이아웃 일관성 (Scrollbar Layout Consistency)
+
+스크롤바가 나타나거나 사라질 때 레이아웃이 미세하게 좌우로 흔들리는 현상(**Layout Shift**)을 방지하기 위해 다음 규칙을 적용합니다.
+
+- **`scrollbar-gutter: stable`**: 항목 개수에 따라 스크롤바가 생겼다 사라졌다 하는 리스트, 모달, 검색 결과 영역 등에 필수적으로 적용합니다.
+- **적용 예시**:
+```typescript
+<div className="flex-1 overflow-y-auto" style={{ scrollbarGutter: 'stable' }}>
+  {/* Scrollable Content */}
+</div>
+```
+
+---
+
 ## 🔲 컴포넌트 스타일 가이드 (Component Style Guide)
 
 ### 1. 패드 (Pad)
