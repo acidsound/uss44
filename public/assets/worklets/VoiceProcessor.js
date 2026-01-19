@@ -35,6 +35,10 @@ class VoiceProcessor extends AudioWorkletProcessor {
         case 'STOP_ALL':
           this.stopAllVoices();
           break;
+        case 'CLEAR_ALL_SAMPLES':
+          this.sampleBuffers.clear();
+          this.voices = [];
+          break;
       }
     };
   }

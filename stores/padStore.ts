@@ -109,6 +109,8 @@ export const usePadStore = create<PadState>((set, get) => ({
 
   resetPads: () => {
     set({ pads: createBasePads(), samples: {} });
+    useAudioStore.getState().stopAll();
+    useAudioStore.getState().clearAllSamples();
   },
 
   setPadsFromData: (newPads) => {
@@ -362,12 +364,19 @@ export const usePadStore = create<PadState>((set, get) => ({
     const defaultPad = basePads[id];
     if (defaultPad) {
       if (currentPad?.sampleId) {
-        // Only remove from worklet if no other pads are using this sampleId
-        const otherPadsUsingSample = Object.values(pads).filter(p => p.id !== id && p.sampleId === currentPad.sampleId);
+        // Correctly find other pads using this sample by checking keys (e.g., 'A-0')
+        const otherPadsUsingSample = Object.entries(pads).filter(([key, p]) =>
+          key !== id && p.sampleId === currentPad.sampleId
+        );
+
         if (otherPadsUsingSample.length === 0) {
           useAudioStore.getState().removeSampleFromWorklet(currentPad.sampleId);
         }
       }
+
+      // Stop any current sound for this pad
+      useAudioStore.getState().stopPadExplicit(id);
+
       set(state => ({ pads: { ...state.pads, [id]: defaultPad } }));
       dbService.savePadConfig(id, defaultPad);
       get().syncMuteStates();

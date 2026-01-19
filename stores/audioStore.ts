@@ -27,6 +27,7 @@ interface AudioState {
   updatePadStartEnd: (padId: string, start: number, end: number) => void;
   updatePadParams: (padId: string, params: { cutoff?: number, resonance?: number, pitch?: number, volume?: number, pan?: number, mute?: boolean }) => void;
   stopAll: () => void;
+  clearAllSamples: () => void;
 
   // Recording Actions
   initMic: () => Promise<void>;
@@ -195,6 +196,13 @@ export const useAudioStore = create<AudioState>((set, get) => ({
     const { workletNode } = get();
     if (workletNode) {
       workletNode.port.postMessage({ type: 'STOP_ALL' });
+    }
+  },
+
+  clearAllSamples: () => {
+    const { workletNode } = get();
+    if (workletNode) {
+      workletNode.port.postMessage({ type: 'CLEAR_ALL_SAMPLES' });
     }
   },
 
