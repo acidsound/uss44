@@ -548,7 +548,7 @@ export const usePadStore = create<PadState>((set, get) => ({
   updateSamplePack: async (id, updates) => {
     const packs = get().samplePacks;
     const pack = packs.find(p => p.id === id);
-    if (!pack) return;
+    if (!pack || pack.isDefault) return;
     const updatedPack = { ...pack, ...updates };
     await dbService.saveSamplePack(updatedPack);
     const newPacks = await dbService.getAllSamplePacks();
@@ -558,7 +558,7 @@ export const usePadStore = create<PadState>((set, get) => ({
   toggleFavoritePack: async (packId) => {
     const packs = get().samplePacks;
     const pack = packs.find(p => p.id === packId);
-    if (!pack) return;
+    if (!pack || pack.isDefault) return;
     const updatedPack = { ...pack, isFavorite: !pack.isFavorite };
     await dbService.saveSamplePack(updatedPack);
     const newPacks = await dbService.getAllSamplePacks();

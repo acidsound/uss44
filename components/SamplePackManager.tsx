@@ -222,12 +222,14 @@ export const SamplePackManager: React.FC<SamplePackManagerProps> = ({ onClose })
                                         <div className="text-[8px] text-zinc-600 truncate mt-0.5 font-mono">{pack.url}</div>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={() => toggleFavoritePack(pack.id)}
-                                            className={`p-1.5 transition-colors ${pack.isFavorite ? 'text-yellow-500' : 'text-zinc-600 hover:text-zinc-400'}`}
-                                        >
-                                            <Star size={14} fill={pack.isFavorite ? "currentColor" : "none"} />
-                                        </button>
+                                        {!pack.isDefault && (
+                                            <button
+                                                onClick={() => toggleFavoritePack(pack.id)}
+                                                className={`p-1.5 transition-colors ${pack.isFavorite ? 'text-yellow-500' : 'text-zinc-600 hover:text-zinc-400'}`}
+                                            >
+                                                <Star size={14} fill={pack.isFavorite ? "currentColor" : "none"} />
+                                            </button>
+                                        )}
 
                                         {currentSamplePackId === pack.id ? (
                                             <div className="w-8 h-8 flex items-center justify-center bg-retro-accent/20 border border-retro-accent/30 rounded-lg text-retro-accent shadow-[0_0_10px_rgba(255,30,86,0.2)]">
@@ -246,16 +248,18 @@ export const SamplePackManager: React.FC<SamplePackManagerProps> = ({ onClose })
                                             </button>
                                         )}
                                         <div className="w-px h-3 bg-white/10 mx-1" />
-                                        <button
-                                            onClick={() => {
-                                                setEditingId(pack.id);
-                                                setEditName(pack.name);
-                                                setEditUrl(pack.url);
-                                            }}
-                                            className="p-1.5 text-zinc-500 hover:text-white transition-colors"
-                                        >
-                                            <Edit2 size={12} />
-                                        </button>
+                                        {!pack.isDefault && (
+                                            <button
+                                                onClick={() => {
+                                                    setEditingId(pack.id);
+                                                    setEditName(pack.name);
+                                                    setEditUrl(pack.url);
+                                                }}
+                                                className="p-1.5 text-zinc-500 hover:text-white transition-colors"
+                                            >
+                                                <Edit2 size={12} />
+                                            </button>
+                                        )}
                                         {!pack.isDefault && (
                                             <button onClick={() => deleteSamplePack(pack.id)} className="p-1.5 text-red-500/50 hover:text-red-500 transition-colors">
                                                 <Trash2 size={12} />
