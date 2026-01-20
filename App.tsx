@@ -484,6 +484,26 @@ const App: React.FC = () => {
         </div>
       )}
 
+      {/* Beat Pulse - Recording Mode Visual Metronome */}
+      {isRecording && isPlaying && (
+        <>
+          {/* Left Pulse Line */}
+          <div
+            className={`absolute left-0 top-0 bottom-0 w-1.5 z-[55] pointer-events-none transition-all duration-75 ${currentStep % 4 === 0
+                ? 'bg-retro-accent shadow-[0_0_20px_rgba(255,30,86,0.8),0_0_40px_rgba(255,30,86,0.4)]'
+                : 'bg-retro-accent/40 shadow-[0_0_10px_rgba(255,30,86,0.3)]'
+              }`}
+          />
+          {/* Right Pulse Line */}
+          <div
+            className={`absolute right-0 top-0 bottom-0 w-1.5 z-[55] pointer-events-none transition-all duration-75 ${currentStep % 4 === 0
+                ? 'bg-retro-accent shadow-[0_0_20px_rgba(255,30,86,0.8),0_0_40px_rgba(255,30,86,0.4)]'
+                : 'bg-retro-accent/40 shadow-[0_0_10px_rgba(255,30,86,0.3)]'
+              }`}
+          />
+        </>
+      )}
+
       {appMode === AppMode.SAMPLE && (
         <SampleBrowser
           isLandscape={isLandscape}

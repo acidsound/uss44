@@ -92,7 +92,8 @@ When a pad is selected, you can manipulate its sound in real-time. Changes are a
 You can record your performance directly into the sequencer in real-time:
 1. **Enable Record Mode**: **Long-press** the **Play** button until it turns red and shows a record icon.
 2. **Perform**: While the sequencer is playing, hit any pad in **Perform** mode. Your hits will be automatically recorded into the active step of the sequencer.
-3. **Disable**: Long-press the Play button again (or stop playback) to exit recording mode.
+3. **Visual Metronome (Beat Pulse)**: During recording, pink lines on the left and right edges of the screen will pulse in time with the BPM. This helps you stay on beat visually even in loud environments.
+4. **Disable**: Long-press the Play button again (or stop playback) to exit recording mode.
    * *Note: This allows you to quickly build patterns by "playing" them rather than manual step entry.*
 
 ### Minimalist Step Visualization
