@@ -66,6 +66,18 @@ export interface StepData {
   length: number;   // duration factor (0.1 to 4.0)
 }
 
+export interface Pattern {
+  id: string;        // e.g., 'ptn-0', 'ptn-1'
+  name: string;      // Display name
+  tracks: Record<string, StepData[]>; // Key: "Channel-PadIndex"
+  stepCount: number;
+}
+
+export interface SongItem {
+  id: string;        // Unique ID for the playlist item
+  patternId: string; // Reference to the Pattern
+}
+
 export interface DigItem {
   id: string;
   type: 'video' | 'audio';
@@ -80,7 +92,8 @@ export enum AppMode {
   PERFORM = 'PERFORM',
   SEQUENCE = 'SEQUENCE',
   SAMPLE = 'SAMPLE', // Renamed from DIG
-  EDIT = 'EDIT'
+  EDIT = 'EDIT',
+  SONG = 'SONG'
 }
 
 export interface ProjectData {
@@ -88,7 +101,9 @@ export interface ProjectData {
   date: number;
   pads: Record<string, Omit<Pad, 'buffer' | 'isHeld' | 'lastTriggerTime' | 'lastTriggerDuration'>>;
   samples: Record<string, { name: string, dataBase64: string, waveform: number[] }>;
-  patterns: Record<string, StepData[]>;
+  patterns: Record<string, Pattern>;
+  song: SongItem[];
+  patterns_legacy?: Record<string, StepData[]>; // For migration support if needed
   stepCount?: number;
   bpm: number;
 }

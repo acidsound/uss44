@@ -1,13 +1,15 @@
 
-import { Pad, SampleMetadata, StepData } from '../types';
+import { Pad, SampleMetadata, StepData, Pattern, SongItem } from '../types';
 
 const DB_NAME = 'uss44-sampler-db';
-const DB_VERSION = 10; // Incremented for safety and new store stability
+const DB_VERSION = 11; // Incremented for Song Mode migration
 const STORES = {
   SAMPLES: 'samples',
   PAD_CONFIGS: 'pad-configs',
   SAMPLE_METADATA: 'sample-metadata',
   SEQUENCES: 'sequences',
+  PATTERNS: 'patterns',
+  SONGS: 'songs',
   // User Library Stores
   USER_SONGS: 'user_songs',
   USER_SOUNDS: 'user_sounds',
@@ -68,6 +70,49 @@ export class DbService {
         }
         if (!db.objectStoreNames.contains(STORES.SAMPLE_PACKS)) {
           db.createObjectStore(STORES.SAMPLE_PACKS, { keyPath: 'id' });
+        }
+
+        // --- Song Mode Stores (v11) ---
+        if (!db.objectStoreNames.contains(STORES.PATTERNS)) {
+          const patternStore = db.createObjectStore(STORES.PATTERNS, { keyPath: 'id' });
+
+          // MIGRATION: If we have data in SEQUENCES, migrate it to PATTERNS as 'Pattern A'
+          if (e.oldVersion < 11 && db.objectStoreNames.contains(STORES.SEQUENCES)) {
+            const seqStore = (e.currentTarget as IDBOpenDBRequest).transaction!.objectStore(STORES.SEQUENCES);
+            const request = seqStore.getAll();
+            request.onsuccess = () => {
+              const sequences = request.result;
+              if (sequences && sequences.length > 0) {
+                const tracks: Record<string, StepData[]> = {};
+                sequences.forEach((seq: any) => {
+                  if (!seq.id.startsWith('__')) { // Ignore metadata
+                    tracks[seq.id] = seq.steps;
+                  }
+                });
+
+                if (Object.keys(tracks).length > 0) {
+                  // Detect Step Count from data (usually 16 or 64)
+                  let maxSteps = 16;
+                  Object.values(tracks).forEach(steps => {
+                    if (steps.length > maxSteps) maxSteps = 64; // Snap to 64 if any track > 16
+                  });
+
+                  const patternA: Pattern = {
+                    id: 'ptn-0',
+                    name: 'Pattern A',
+                    tracks: tracks,
+                    stepCount: maxSteps
+                  };
+                  patternStore.put(patternA);
+                  console.log(`Migrated legacy sequences to Pattern A (${maxSteps} Steps)`);
+                }
+              }
+            };
+          }
+        }
+
+        if (!db.objectStoreNames.contains(STORES.SONGS)) {
+          db.createObjectStore(STORES.SONGS, { autoIncrement: true }); // We'll just store one song array at key 'current' usually, or use 0
         }
       };
 
@@ -223,8 +268,8 @@ export class DbService {
 
   async saveMetadata(key: string, value: any): Promise<void> {
     await this.init();
-    const tx = this.db!.transaction(STORES.SEQUENCES, 'readwrite');
-    tx.objectStore(STORES.SEQUENCES).put({ id: `__metadata_${key}`, value });
+    const tx = this.db!.transaction(STORES.PATTERNS, 'readwrite');
+    tx.objectStore(STORES.PATTERNS).put({ id: `__metadata_${key}`, value });
     return new Promise((resolve, reject) => {
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
@@ -233,8 +278,8 @@ export class DbService {
 
   async getMetadata(key: string): Promise<any> {
     await this.init();
-    const tx = this.db!.transaction(STORES.SEQUENCES, 'readonly');
-    const request = tx.objectStore(STORES.SEQUENCES).get(`__metadata_${key}`);
+    const tx = this.db!.transaction(STORES.PATTERNS, 'readonly');
+    const request = tx.objectStore(STORES.PATTERNS).get(`__metadata_${key}`);
     return new Promise((resolve, reject) => {
       request.onsuccess = () => resolve(request.result?.value);
       request.onerror = () => reject(request.error);
@@ -267,10 +312,11 @@ export class DbService {
 
   async clearAllData(): Promise<void> {
     await this.init();
-    const tx = this.db!.transaction([STORES.SAMPLES, STORES.PAD_CONFIGS, STORES.SEQUENCES], 'readwrite');
+    const tx = this.db!.transaction([STORES.SAMPLES, STORES.PAD_CONFIGS, STORES.PATTERNS, STORES.SONGS], 'readwrite');
     tx.objectStore(STORES.SAMPLES).clear();
     tx.objectStore(STORES.PAD_CONFIGS).clear();
-    tx.objectStore(STORES.SEQUENCES).clear();
+    tx.objectStore(STORES.PATTERNS).clear();
+    tx.objectStore(STORES.SONGS).clear();
     return new Promise((resolve, reject) => {
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
@@ -280,8 +326,9 @@ export class DbService {
   async clearSequences(): Promise<void> {
     await this.init();
     if (!this.db) throw new Error("IndexedDB not initialized");
-    const tx = this.db.transaction(STORES.SEQUENCES, 'readwrite');
-    tx.objectStore(STORES.SEQUENCES).clear();
+    const tx = this.db.transaction([STORES.PATTERNS, STORES.SONGS], 'readwrite');
+    tx.objectStore(STORES.PATTERNS).clear();
+    tx.objectStore(STORES.SONGS).clear();
     return new Promise((resolve, reject) => {
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
@@ -332,6 +379,61 @@ export class DbService {
     return new Promise((resolve, reject) => {
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
+    });
+  }
+  // --- Song Mode Methods ---
+
+  async savePattern(pattern: Pattern): Promise<void> {
+    await this.init();
+    const tx = this.db!.transaction(STORES.PATTERNS, 'readwrite');
+    tx.objectStore(STORES.PATTERNS).put(pattern);
+    return new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getAllPatterns(): Promise<Pattern[]> {
+    await this.init();
+    const tx = this.db!.transaction(STORES.PATTERNS, 'readonly');
+    const request = tx.objectStore(STORES.PATTERNS).getAll();
+    return new Promise((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async clearPatterns(): Promise<void> {
+    await this.init();
+    const tx = this.db!.transaction(STORES.PATTERNS, 'readwrite');
+    tx.objectStore(STORES.PATTERNS).clear();
+    return new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async saveSong(song: SongItem[]): Promise<void> {
+    await this.init();
+    const tx = this.db!.transaction(STORES.SONGS, 'readwrite');
+    // We store the active song list with a fixed key 'current_song'
+    tx.objectStore(STORES.SONGS).put(song, 'current_song');
+    return new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getSong(): Promise<SongItem[]> {
+    await this.init();
+    // Check if store exists first (safety)
+    if (!this.db!.objectStoreNames.contains(STORES.SONGS)) return [];
+
+    const tx = this.db!.transaction(STORES.SONGS, 'readonly');
+    const request = tx.objectStore(STORES.SONGS).get('current_song');
+    return new Promise((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => reject(request.error);
     });
   }
 }

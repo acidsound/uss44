@@ -397,6 +397,78 @@ brew install cloc  # macOS
 - [Patterns.dev](https://www.patterns.dev/)
 - [Kent C. Dodds Blog](https://kentcdodds.com/blog)
 
+### 📱 모바일 터치/포인터 이벤트 처리
+
+> **중요**: 모바일 웹 앱에서 반복적으로 발생하는 이슈입니다.
+
+#### ⚠️ 지양해야 할 패턴
+
+```typescript
+// ❌ 문제: Touch + Mouse 이벤트 혼합 시 중복 트리거
+return {
+  onMouseDown: handler,
+  onMouseUp: handler,
+  onTouchStart: handler,  // 모바일에서 Mouse 이벤트도 함께 발생!
+  onTouchEnd: handler,
+};
+
+// ❌ 문제: Passive Event Listener에서 preventDefault 호출
+const handleTouchStart = (e: TouchEvent) => {
+  e.preventDefault();  // 경고: Unable to preventDefault inside passive event listener
+};
+```
+
+#### ✅ 권장 패턴: PointerEvents 사용
+
+```typescript
+// ✅ PointerEvents는 Touch/Mouse/Pen 통합 처리
+const useLongPress = (onLongPress: () => void, onClick: () => void, ms = 400) => {
+  const timeoutRef = useRef<number>();
+  const isLongPress = useRef(false);
+
+  const start = () => {
+    isLongPress.current = false;
+    timeoutRef.current = window.setTimeout(() => {
+      isLongPress.current = true;
+      onLongPress();
+    }, ms);
+  };
+
+  const stop = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    if (!isLongPress.current) onClick();
+    isLongPress.current = false;
+  };
+
+  const cancel = () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    isLongPress.current = false;
+  };
+
+  return {
+    onPointerDown: start,
+    onPointerUp: stop,
+    onPointerLeave: cancel,
+    onPointerCancel: cancel,
+  };
+};
+```
+
+#### 📏 핵심 원칙
+
+| 상황 | 권장 접근법 |
+|-----|------------|
+| 단순 탭/클릭 | `onClick` 사용 |
+| 드래그/스와이프 | `onPointerDown/Move/Up` 사용 |
+| 롱탭 + 탭 분기 | `onPointerDown/Up` + 타이머 조합 |
+| 스크롤 영역 내 터치 | Passive listener 유지, `preventDefault` 지양 |
+
+#### 🔍 디버깅 체크리스트
+
+- [ ] 모바일에서 동일 액션이 2번 실행되는지 확인
+- [ ] Console에 `passive event listener` 경고 없는지 확인
+- [ ] Desktop과 Mobile에서 동일한 동작 확인
+
 ---
 
 ## 📝 리팩토링 실행 템플릿

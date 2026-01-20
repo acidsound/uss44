@@ -15,11 +15,14 @@ import { LoadingOverlay } from './components/LoadingOverlay';
 import { InitOverlay } from './components/InitOverlay';
 import { ParametersPanel } from './components/ParametersPanel';
 import { SequencePanel } from './components/SequencePanel';
+import { SongEditor } from './components/SongEditor';
 import { BpmModal } from './components/BpmModal';
 import { SettingsMenu } from './components/SettingsMenu';
 import { PadMenu } from './components/PadMenu';
 import { RecordingModal } from './components/RecordingModal';
 import { RenderModal } from './components/RenderModal';
+import { ChannelModal } from './components/ChannelModal';
+import { PatternModal } from './components/PatternModal';
 import { AppMode, ChannelId } from './types';
 import { STEPS_PER_BAR } from './constants';
 
@@ -38,7 +41,8 @@ const App: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [showRenderModal, setShowRenderModal] = useState(false);
   const [showPadMenu, setShowPadMenu] = useState(false);
-  const [padMenuAnchor, setPadMenuAnchor] = useState<DOMRect | undefined>(undefined);
+  const [showChannelModal, setShowChannelModal] = useState(false);
+  const [showPatternModal, setShowPatternModal] = useState(false);
 
   const { initialize, resume, initialized, initMic, closeMic, startRecording, stopRecording, loadSampleToWorklet } = useAudioStore((state) => state);
   const {
@@ -47,7 +51,8 @@ const App: React.FC = () => {
   } = usePadStore((state) => state);
   const {
     bpm, isPlaying, currentStep, setStep, togglePlay, toggleStep, setSelectedStepIndex, initSequencer,
-    isRecording, setIsRecording, recordHit
+    isRecording, setIsRecording, recordHit, isSongMode, setIsSongMode, advanceSong, activePatternId,
+    cyclePattern, createPattern, setActivePatternId
   } = useSequencerStore((state) => state);
 
   const selectedPadIndex = parseInt(selectedPadId.split('-').pop() || '0');
@@ -56,6 +61,54 @@ const App: React.FC = () => {
   useEffect(() => {
     bpmRef.current = bpm;
   }, [bpm]);
+
+  // useLongPress Hook (using PointerEvents for unified touch/mouse handling)
+  const useLongPress = (callback: () => void, clickCallback: () => void, ms = 400) => {
+    const timeoutRef = useRef<number>();
+    const isLongPress = useRef(false);
+
+    const start = () => {
+      isLongPress.current = false;
+      timeoutRef.current = window.setTimeout(() => {
+        isLongPress.current = true;
+        callback();
+      }, ms);
+    };
+
+    const stop = () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      if (!isLongPress.current) {
+        clickCallback();
+      }
+      isLongPress.current = false;
+    };
+
+    const cancel = () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      isLongPress.current = false;
+    };
+
+    return {
+      onPointerDown: start,
+      onPointerUp: stop,
+      onPointerLeave: cancel,
+      onPointerCancel: cancel,
+    };
+  };
+
+  const channelLongPress = useLongPress(
+    () => setShowChannelModal(true),
+    () => cycleChannel()
+  );
+
+  const patternLongPress = useLongPress(
+    () => setShowPatternModal(true),
+    () => cyclePattern()
+  );
 
   // UltraSample Mode Logic
   const handleUltraRecordStart = React.useCallback((padIdx: number) => {
@@ -157,8 +210,8 @@ const App: React.FC = () => {
           return;
         }
 
-        if (appMode === AppMode.SEQUENCE) {
-          // Keyboard shortcuts disabled in Sequence appMode per user request
+        if (appMode === AppMode.SEQUENCE || appMode === AppMode.SONG) {
+          // Keyboard shortcuts disabled in Sequence/Song appMode per user request
           return;
         } else if (isEditMode) {
           selectPad(padIdx);
@@ -184,7 +237,7 @@ const App: React.FC = () => {
           return;
         }
 
-        if (appMode !== AppMode.SEQUENCE && !isEditMode) {
+        if (appMode !== AppMode.SEQUENCE && appMode !== AppMode.SONG && !isEditMode) {
           stopPad(padIdx);
         }
       }
@@ -215,6 +268,11 @@ const App: React.FC = () => {
       window.removeEventListener('resize', handleResize);
     };
   }, [initialized, initPads, initSequencer, initialize, resume]);
+
+  // Sync Song Mode state with AppMode
+  useEffect(() => {
+    setIsSongMode(appMode === AppMode.SONG);
+  }, [appMode, setIsSongMode]);
 
   // iOS Audio Context Resume - Show prompt when audio is suspended after background return
   const [showAudioResumePrompt, setShowAudioResumePrompt] = useState(false);
@@ -318,8 +376,22 @@ const App: React.FC = () => {
     const secondsPerBeat = 60.0 / bpmRef.current;
     const stepTime = 0.25 * secondsPerBeat;
     nextNoteTimeRef.current += stepTime;
-    const { stepCount } = useSequencerStore.getState();
-    currentStepRef.current = (currentStepRef.current + 1) % stepCount;
+
+    // Song Mode Logic
+    const { stepCount, isSongMode, advanceSong } = useSequencerStore.getState();
+    let nextStep = currentStepRef.current + 1;
+
+    if (nextStep >= stepCount) {
+      if (isSongMode) {
+        advanceSong();
+        // Reset to 0 (new pattern loaded by advanceSong has started)
+        nextStep = 0;
+      } else {
+        nextStep = 0;
+      }
+    }
+
+    currentStepRef.current = nextStep;
     setStep(currentStepRef.current);
   };
 
@@ -383,8 +455,28 @@ const App: React.FC = () => {
         padIndex={selectedPadIndex}
         isOpen={showPadMenu}
         onClose={() => setShowPadMenu(false)}
-        anchorRect={padMenuAnchor}
       />
+
+      {showChannelModal && (
+        <ChannelModal
+          currentChannel={currentChannel}
+          onSelect={(ch) => setChannel(ch)}
+          onClose={() => setShowChannelModal(false)}
+        />
+      )}
+
+      {showPatternModal && (
+        <PatternModal
+          activePatternId={activePatternId}
+          onSelect={(id) => {
+            if (!useSequencerStore.getState().patternLibrary[id]) {
+              createPattern(id);
+            }
+            setActivePatternId(id);
+          }}
+          onClose={() => setShowPatternModal(false)}
+        />
+      )}
 
       {isUltraSampleMode && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[60] bg-retro-accent text-white px-4 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-[0.2em] shadow-[0_0_20px_#ff1e56] animate-pulse pointer-events-none">
@@ -421,31 +513,46 @@ const App: React.FC = () => {
               <div id="appMode-selector-landscape" className="flex flex-col items-center gap-1 mt-4">
                 <button
                   id="appMode-dig-btn-l"
+                  disabled={appMode === AppMode.SONG}
                   onClick={() => setAppMode(AppMode.SAMPLE)}
-                  className={`w-10 h-8 flex items-center justify-center text-[7px] font-extrabold uppercase transition-all tracking-wider rounded ${appMode === AppMode.SAMPLE ? 'bg-retro-accent text-white' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'}`}
+                  className={`w-10 h-8 flex items-center justify-center text-[7px] font-extrabold uppercase transition-all tracking-wider rounded ${appMode === AppMode.SAMPLE ? 'bg-retro-accent text-white' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'} ${appMode === AppMode.SONG ? 'opacity-20 cursor-not-allowed' : ''}`}
                   title="Dig Library"
                 >
                   DIG
                 </button>
                 <button
                   id="appMode-perform-btn-l"
+                  disabled={appMode === AppMode.SONG}
                   onClick={() => {
                     setIsEditMode(!isEditMode);
                     if (appMode === AppMode.SAMPLE) setAppMode(AppMode.PERFORM);
                   }}
-                  className={`w-10 h-8 flex items-center justify-center text-[7px] font-extrabold uppercase transition-all tracking-wider rounded ${!isEditMode ? 'bg-zinc-800/80 text-white' : 'bg-retro-accent text-white shadow-inner'}`}
+                  className={`w-10 h-8 flex items-center justify-center text-[7px] font-extrabold uppercase transition-all tracking-wider rounded ${!isEditMode ? 'bg-zinc-800/80 text-white' : 'bg-retro-accent text-white shadow-inner'} ${appMode === AppMode.SONG ? 'opacity-20 cursor-not-allowed' : ''}`}
                   title={isEditMode ? 'Edit Mode' : 'Perform Mode'}
                 >
                   {isEditMode ? 'EDIT' : 'PERF'}
                 </button>
                 <button
                   id="appMode-sequence-btn-l"
+                  disabled={appMode === AppMode.SONG}
                   onClick={() => setAppMode(appMode === AppMode.SEQUENCE ? AppMode.PERFORM : AppMode.SEQUENCE)}
-                  className={`w-10 h-8 flex flex-col items-center justify-center transition-all rounded ${appMode === AppMode.SEQUENCE ? 'bg-retro-accent text-white shadow-lg' : 'bg-black/20 text-zinc-500 hover:text-zinc-300'}`}
+                  className={`w-10 h-8 flex flex-col items-center justify-center transition-all rounded ${appMode === AppMode.SEQUENCE ? 'bg-retro-accent text-white shadow-lg' : 'bg-black/20 text-zinc-500 hover:text-zinc-300'} ${appMode === AppMode.SONG ? 'opacity-20 cursor-not-allowed' : ''}`}
                   title="Sequence Mode"
                 >
                   <span className="text-[6px] uppercase font-extrabold tracking-tighter">SEQ</span>
                   <span className={`text-[8px] font-extrabold ${appMode === AppMode.SEQUENCE ? 'text-white' : 'text-retro-accent'}`}>{currentStep > -1 ? currentStep + 1 : '--'}</span>
+                </button>
+                <button
+                  id="appMode-song-btn-l"
+                  onClick={() => setAppMode(appMode === AppMode.SONG ? AppMode.PERFORM : AppMode.SONG)}
+                  className={`w-10 h-8 flex flex-col items-center justify-center transition-all rounded ${appMode === AppMode.SONG ? 'bg-retro-accent text-white shadow-lg' : 'bg-black/20 text-zinc-500 hover:text-zinc-300'}`}
+                  title="Song Mode"
+                >
+                  <span className="text-[6px] uppercase font-extrabold tracking-tighter">SONG</span>
+                  <div className="flex gap-0.5 mt-0.5">
+                    <div className={`w-1 h-1 rounded-full ${appMode === AppMode.SONG ? 'bg-white' : 'bg-zinc-600'}`}></div>
+                    <div className={`w-1 h-1 rounded-full ${appMode === AppMode.SONG ? 'bg-white' : 'bg-zinc-600'}`}></div>
+                  </div>
                 </button>
                 <button
                   id="transport-play-btn-l"
@@ -470,18 +577,31 @@ const App: React.FC = () => {
                   <span className="text-white text-[10px]">{bpm}</span>
                 </button>
                 <button
-                  id="lcd-channel-l"
-                  onClick={() => setChannel(currentChannel === 'A' ? 'B' : currentChannel === 'B' ? 'C' : currentChannel === 'C' ? 'D' : 'A')}
                   className="flex flex-col items-center hover:bg-white/10 p-1 rounded transition-colors active:scale-95"
-                  title="Switch Channel"
+                  {...patternLongPress}
                 >
-                  <span className="text-zinc-500 text-[6px] tracking-widest">CH</span>
-                  <span className="text-white text-[10px]">{currentChannel}</span>
+                  <span className="text-zinc-500 text-[6px] tracking-widest">PAT</span>
+                  <span className="text-white text-[10px]">
+                    {String.fromCharCode(65 + parseInt(activePatternId.split('-')[1] || '0'))}
+                  </span>
                 </button>
-                <div className="flex flex-col items-center p-1">
-                  <span className="text-zinc-500 text-[6px] tracking-widest">PAD</span>
-                  <span className="text-white text-[10px]">{parseInt(selectedPadId.split('-')[1]) + 1}</span>
-                </div>
+                {appMode !== AppMode.SONG && (
+                  <>
+                    <button
+                      id="lcd-channel-l"
+                      {...channelLongPress}
+                      className="flex flex-col items-center hover:bg-white/10 p-1 rounded transition-colors active:scale-95"
+                      title="Switch Channel"
+                    >
+                      <span className="text-zinc-500 text-[6px] tracking-widest">CH</span>
+                      <span className="text-white text-[10px]">{currentChannel}</span>
+                    </button>
+                    <div className="flex flex-col items-center p-1">
+                      <span className="text-zinc-500 text-[6px] tracking-widest">PAD</span>
+                      <span className="text-white text-[10px]">{parseInt(selectedPadId.split('-')[1]) + 1}</span>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Rotated Visualizer (Landscape) */}
@@ -519,8 +639,8 @@ const App: React.FC = () => {
                 <h1 className="text-base font-extrabold tracking-tighter text-white">USS<span className="text-retro-accent">44</span></h1>
               </button>
 
-              <div id="header-lcd" className="flex-1 max-w-md mx-6 h-10 bg-black/60 rounded-lg border border-white/5 flex items-center px-4 justify-between font-sans text-[11px] text-retro-accent relative overflow-hidden shadow-inner">
-                <div className="z-10 flex flex-row gap-6 uppercase items-center text-center font-extrabold">
+              <div id="header-lcd" className="flex-1 max-w-md mx-6 h-10 bg-black/60 rounded-lg border border-white/5 flex items-center px-4 justify-center font-sans text-[11px] text-retro-accent relative overflow-hidden shadow-inner">
+                <div className="z-10 flex flex-row gap-2 uppercase items-center text-center font-extrabold">
                   <button
                     id="lcd-bpm"
                     onClick={() => setShowBpmModal(true)}
@@ -531,25 +651,36 @@ const App: React.FC = () => {
                   </button>
 
                   <button
-                    id="lcd-channel"
-                    onClick={cycleChannel}
                     className="flex flex-col items-center gap-0.5 hover:bg-white/10 p-1 rounded transition-colors active:scale-95"
+                    {...patternLongPress}
                   >
-                    <span className="text-zinc-500 text-[8px] tracking-widest">CH.</span>
-                    <span className="leading-none text-white">{currentChannel}</span>
+                    <span className="text-zinc-500 text-[8px] tracking-widest">PAT</span>
+                    <span className="leading-none text-white">
+                      {String.fromCharCode(65 + parseInt(activePatternId.split('-')[1] || '0'))}
+                    </span>
                   </button>
 
-                  <button
-                    id="lcd-pad"
-                    onClick={(e) => {
-                      setPadMenuAnchor(e.currentTarget.getBoundingClientRect());
-                      setShowPadMenu(true);
-                    }}
-                    className="flex flex-col items-center gap-0.5 hover:bg-white/10 p-1 rounded transition-colors active:scale-95"
-                  >
-                    <span className="text-zinc-500 text-[8px] tracking-widest">PAD</span>
-                    <span className="leading-none text-white">{selectedPadIndex + 1}</span>
-                  </button>
+                  {appMode !== AppMode.SONG && (
+                    <>
+                      <button
+                        id="lcd-channel"
+                        {...channelLongPress}
+                        className="flex flex-col items-center gap-0.5 hover:bg-white/10 p-1 rounded transition-colors active:scale-95"
+                      >
+                        <span className="text-zinc-500 text-[8px] tracking-widest">CH.</span>
+                        <span className="leading-none text-white">{currentChannel}</span>
+                      </button>
+
+                      <button
+                        id="lcd-pad"
+                        onClick={() => setShowPadMenu(true)}
+                        className="flex flex-col items-center gap-0.5 hover:bg-white/10 p-1 rounded transition-colors active:scale-95"
+                      >
+                        <span className="text-zinc-500 text-[8px] tracking-widest">PAD</span>
+                        <span className="leading-none text-white">{selectedPadIndex + 1}</span>
+                      </button>
+                    </>
+                  )}
                 </div>
                 <div id="header-visualizer" className="absolute right-0 top-0 h-full w-32 opacity-50"><Visualizer /></div>
               </div>
@@ -573,18 +704,20 @@ const App: React.FC = () => {
             <div className="flex-1 flex items-stretch border-r border-zinc-800/50">
               <button
                 id="appMode-dig-btn"
+                disabled={appMode === AppMode.SONG}
                 onClick={() => setAppMode(AppMode.SAMPLE)}
-                className={`flex-1 flex items-center justify-center text-[10px] font-extrabold uppercase transition-all tracking-wider ${appMode === AppMode.SAMPLE ? 'bg-retro-accent text-white' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'}`}
+                className={`flex-1 flex items-center justify-center text-[10px] font-extrabold uppercase transition-all tracking-wider ${appMode === AppMode.SAMPLE ? 'bg-retro-accent text-white' : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'} ${appMode === AppMode.SONG ? 'opacity-20 cursor-not-allowed' : ''}`}
               >
                 Dig Library
               </button>
               <button
                 id="appMode-perform-btn"
+                disabled={appMode === AppMode.SONG}
                 onClick={() => {
                   setIsEditMode(!isEditMode);
                   if (appMode === AppMode.SAMPLE) setAppMode(AppMode.PERFORM);
                 }}
-                className={`flex-1 flex items-center justify-center text-[10px] font-extrabold uppercase transition-all tracking-wider ${!isEditMode ? 'bg-zinc-800/80 text-white' : 'bg-retro-accent text-white shadow-inner'}`}
+                className={`flex-1 flex items-center justify-center text-[10px] font-extrabold uppercase transition-all tracking-wider ${!isEditMode ? 'bg-zinc-800/80 text-white' : 'bg-retro-accent text-white shadow-inner'} ${appMode === AppMode.SONG ? 'opacity-20 cursor-not-allowed' : ''}`}
               >
                 {isEditMode ? 'Edit' : 'Perform'}
               </button>
@@ -592,11 +725,23 @@ const App: React.FC = () => {
             <div className="flex items-stretch">
               <button
                 id="appMode-sequence-btn"
+                disabled={appMode === AppMode.SONG}
                 onClick={() => setAppMode(appMode === AppMode.SEQUENCE ? AppMode.PERFORM : AppMode.SEQUENCE)}
-                className={`w-20 border-r border-zinc-800/50 flex flex-row gap-2 items-center justify-center transition-all ${appMode === AppMode.SEQUENCE ? 'bg-retro-accent text-white shadow-lg' : 'bg-black/20 text-zinc-500 hover:text-zinc-300'}`}
+                className={`w-20 border-r border-zinc-800/50 flex flex-row gap-2 items-center justify-center transition-all ${appMode === AppMode.SEQUENCE ? 'bg-retro-accent text-white shadow-lg' : 'bg-black/20 text-zinc-500 hover:text-zinc-300'} ${appMode === AppMode.SONG ? 'opacity-20 cursor-not-allowed' : ''}`}
               >
                 <span className="text-[8px] uppercase font-extrabold mb-0.5 tracking-tighter">Step</span>
                 <span className={`text-[10px] font-extrabold ${appMode === AppMode.SEQUENCE ? 'text-white' : 'text-retro-accent'}`}>{currentStep > -1 ? currentStep + 1 : '--'}</span>
+              </button>
+              <button
+                id="appMode-song-btn"
+                onClick={() => setAppMode(appMode === AppMode.SONG ? AppMode.PERFORM : AppMode.SONG)}
+                className={`w-14 border-r border-zinc-800/50 flex flex-col items-center justify-center transition-all ${appMode === AppMode.SONG ? 'bg-retro-accent text-white shadow-lg' : 'bg-black/20 text-zinc-500 hover:text-zinc-300'}`}
+              >
+                <span className="text-[8px] uppercase font-extrabold mb-0.5 tracking-tighter">Song</span>
+                <div className="flex gap-0.5 mt-0.5">
+                  <div className={`w-1 h-1 rounded-full ${appMode === AppMode.SONG ? 'bg-white' : 'bg-zinc-600'}`}></div>
+                  <div className={`w-1 h-1 rounded-full ${appMode === AppMode.SONG ? 'bg-white' : 'bg-zinc-600'}`}></div>
+                </div>
               </button>
               <button
                 id="transport-play-btn"
@@ -616,30 +761,36 @@ const App: React.FC = () => {
         <div id="workspace-container"
           className="flex-1 flex flex-col items-center justify-center bg-retro-bg overflow-hidden relative min-h-0 w-full">
           <div className={`${isLandscape ? 'w-full h-full p-2' : 'flex-1 aspect-square max-h-full max-w-full p-2 mx-auto'}`}>
-            <PadGrid
-              appMode={appMode}
-              isEditMode={isEditMode}
-              isUltraSampleMode={isUltraSampleMode}
-              onUltraRecordStart={handleUltraRecordStart}
-              onUltraRecordStop={handleUltraRecordStop}
-            />
+            {appMode === AppMode.SONG ? (
+              <SongEditor />
+            ) : (
+              <PadGrid
+                appMode={appMode}
+                isEditMode={isEditMode}
+                isUltraSampleMode={isUltraSampleMode}
+                onUltraRecordStart={handleUltraRecordStart}
+                onUltraRecordStop={handleUltraRecordStop}
+              />
+            )}
           </div>
         </div>
       </main>
 
       {/* Footer / Bottom Panel (Independent from Main) */}
-      <footer id="app-footer"
-        className={`
-             ${isLandscape ? 'w-1/2 border-l h-full' : 'flex-none w-full border-t h-52'} 
-             bg-retro-panel border-zinc-800/80 flex flex-col shadow-2xl z-20 overflow-hidden relative
-           `}
-      >
-        {appMode === AppMode.SEQUENCE ? (
-          <SequencePanel />
-        ) : (
-          <ParametersPanel isLandscape={isLandscape} isUltraSampleMode={isUltraSampleMode} />
-        )}
-      </footer>
+      {appMode !== AppMode.SONG && (
+        <footer id="app-footer"
+          className={`
+              ${isLandscape ? 'w-1/2 border-l h-full' : 'flex-none w-full border-t h-52'} 
+              bg-retro-panel border-zinc-800/80 flex flex-col shadow-2xl z-20 overflow-hidden relative
+            `}
+        >
+          {appMode === AppMode.SEQUENCE ? (
+            <SequencePanel />
+          ) : (
+            <ParametersPanel isLandscape={isLandscape} isUltraSampleMode={isUltraSampleMode} />
+          )}
+        </footer>
+      )}
 
       {/* Global Modals */}
       {isRecordingModalOpen && (

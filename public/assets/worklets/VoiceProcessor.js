@@ -115,11 +115,13 @@ class VoiceProcessor extends AudioWorkletProcessor {
     // If a pad is re-triggered, the existing voice must stop with a very fast fade (5ms)
     // to avoid overlaps and digital clicks.
     // Every pad is monophonic (choke previous voice of same pad)
-    for (const voice of this.voices) {
-      if (voice.padId === padId && !voice.finished) {
-        voice.envelope.phase = 'release';
-        voice.envelope.releaseT = 0;
-        voice.envelope.release = 0.005; // 5ms forced release to avoid clicks
+    if (triggerMode === 'GATE' || triggerMode === 'LOOP') {
+      for (const voice of this.voices) {
+        if (voice.padId === padId && !voice.finished) {
+          voice.envelope.phase = 'release';
+          voice.envelope.releaseT = 0;
+          voice.envelope.release = 0.005; // 5ms forced release to avoid clicks
+        }
       }
     }
 

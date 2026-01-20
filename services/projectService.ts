@@ -3,7 +3,7 @@ import { usePadStore } from '../stores/padStore';
 import { useSequencerStore } from '../stores/sequencerStore';
 import { useAudioStore } from '../stores/audioStore';
 import { dbService } from './dbService';
-import { ProjectData, Pad, StepData } from '../types';
+import { ProjectData, Pad, StepData, Pattern, SongItem } from '../types';
 
 export type LibraryType = 'SONG' | 'SOUND' | 'SEQUENCE';
 
@@ -97,7 +97,7 @@ class ProjectService {
   }
 
   private serializeAll(): ProjectData {
-    const { patterns, bpm, stepCount } = useSequencerStore.getState();
+    const { patternLibrary, song, bpm, stepCount } = useSequencerStore.getState();
     const soundData = this.serializePadsAndSamples();
 
     return {
@@ -105,7 +105,8 @@ class ProjectService {
       date: Date.now(),
       pads: soundData.pads,
       samples: soundData.samples,
-      patterns: patterns,
+      patterns: patternLibrary,
+      song: song,
       stepCount: stepCount,
       bpm: bpm
     };
@@ -283,30 +284,85 @@ class ProjectService {
     if (type === 'SONG') {
       await this.initAll();
       await this.deserializePadsAndSamples(data);
-      const { setPatterns, setBpm, setStepCount } = useSequencerStore.getState();
-      setPatterns(data.patterns);
-      setBpm(data.bpm);
-      if (data.stepCount) setStepCount(data.stepCount);
-      await dbService.saveMetadata('bpm', data.bpm);
-      for (const key in data.patterns) {
-        await dbService.saveSequence(key, data.patterns[key]);
+      const { setSong, setBpm, setStepCount, patternLibrary: currentLibrary } = useSequencerStore.getState();
+
+      // Load all patterns into DB and memory
+      const newLibrary: Record<string, Pattern> = data.patterns || {};
+      for (const id in newLibrary) {
+        await dbService.savePattern(newLibrary[id]);
       }
+
+      // Load song into DB and memory
+      const song = data.song || [];
+      await dbService.saveSong(song);
+
+      useSequencerStore.setState({
+        patternLibrary: newLibrary,
+        song: song,
+        bpm: data.bpm,
+        stepCount: data.stepCount || 16,
+        // Set first pattern or current selection if possible
+        activePatternId: Object.keys(newLibrary)[0] || 'ptn-0',
+        songIndex: 0,
+        selectedSongIndex: song.length > 0 ? 0 : -1
+      });
+
+      // Update active tracks buffer
+      const activeId = Object.keys(newLibrary)[0];
+      if (activeId && newLibrary[activeId]) {
+        useSequencerStore.setState({
+          patterns: newLibrary[activeId].tracks,
+          stepCount: newLibrary[activeId].stepCount
+        });
+      }
+
+      await dbService.saveMetadata('bpm', data.bpm);
     } else if (type === 'SOUND') {
       // Clear only sounds? Or just overwrite?
       const { resetPads } = usePadStore.getState();
       resetPads();
       await this.deserializePadsAndSamples(data);
     } else if (type === 'SEQUENCE') {
-      const { resetSequencer, setPatterns, setBpm, setStepCount } = useSequencerStore.getState();
-      resetSequencer();
-      setPatterns(data.patterns);
-      setBpm(data.bpm);
-      if (data.stepCount) setStepCount(data.stepCount);
-      await dbService.saveMetadata('bpm', data.bpm);
+      const { setBpm, setStepCount } = useSequencerStore.getState();
       await dbService.clearSequences();
-      for (const key in data.patterns) {
-        await dbService.saveSequence(key, data.patterns[key]);
+
+      // If it's the new format (Record of Patterns)
+      if (data.patterns && typeof data.patterns === 'object' && !Array.isArray(Object.values(data.patterns)[0])) {
+        const newLibrary = data.patterns as Record<string, Pattern>;
+        for (const id in newLibrary) {
+          await dbService.savePattern(newLibrary[id]);
+        }
+        useSequencerStore.setState({ patternLibrary: newLibrary });
+
+        // Load first pattern as active
+        const firstId = Object.keys(newLibrary)[0];
+        if (firstId) {
+          useSequencerStore.setState({
+            activePatternId: firstId,
+            patterns: newLibrary[firstId].tracks,
+            stepCount: newLibrary[firstId].stepCount
+          });
+        }
+      } else {
+        // Legacy "SEQUENCE" load (legacy patterns array)
+        // Convert to a single Pattern A
+        const patternA: Pattern = {
+          id: 'ptn-0',
+          name: 'Pattern A',
+          tracks: data.patterns || {},
+          stepCount: data.stepCount || 16
+        };
+        await dbService.savePattern(patternA);
+        useSequencerStore.setState({
+          patternLibrary: { 'ptn-0': patternA },
+          activePatternId: 'ptn-0',
+          patterns: patternA.tracks,
+          stepCount: patternA.stepCount
+        });
       }
+
+      setBpm(data.bpm);
+      await dbService.saveMetadata('bpm', data.bpm);
     }
   }
 
@@ -333,13 +389,31 @@ class ProjectService {
     await this.initAll();
     await this.deserializePadsAndSamples({ pads: data.pads, samples: data.samples });
 
-    const { setPatterns, setBpm, setStepCount } = useSequencerStore.getState();
-    setPatterns(data.patterns);
-    setBpm(data.bpm);
-    if (data.stepCount) setStepCount(data.stepCount);
+    // Load full Project State
+    const patterns = data.patterns || {};
+    const song = data.song || [];
+
+    for (const id in patterns) {
+      await dbService.savePattern(patterns[id]);
+    }
+    await dbService.saveSong(song);
     await dbService.saveMetadata('bpm', data.bpm);
-    for (const key in data.patterns) {
-      await dbService.saveSequence(key, data.patterns[key]);
+
+    useSequencerStore.setState({
+      patternLibrary: patterns,
+      song: song,
+      bpm: data.bpm,
+      activePatternId: Object.keys(patterns)[0] || 'ptn-0',
+      songIndex: 0,
+      selectedSongIndex: song.length > 0 ? 0 : -1
+    });
+
+    const activeId = Object.keys(patterns)[0];
+    if (activeId && patterns[activeId]) {
+      useSequencerStore.setState({
+        patterns: patterns[activeId].tracks,
+        stepCount: patterns[activeId].stepCount
+      });
     }
   }
 }
