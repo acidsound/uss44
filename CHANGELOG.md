@@ -4,7 +4,23 @@
 
 ---
 
-## [Unreleased]
+## [1.3.0] - 2026-01-20
+
+### Added
+- **Song Mode**: 타일 기반 그리드 인터페이스를 통한 멀티 패턴 시퀀싱 기능 추가
+- **Pattern Library**: 최대 16개(A-P) 패턴 확장 및 독립적 관리 지원
+- **Pattern Selector**: 드래그 앤 드롭을 통한 패턴 순서 변경 및 더블 탭 삭제 기능
+- **Header LCD Interaction**: PAT 영역 탭 시 패턴 사이클링, 롱 탭 시 패턴/채널 선택 모달 제공
+- **Touch UX**: PointerEvents를 활용한 모바일 롱 프레스 및 정밀 드래그(좌/우 삽입 라인) 지원
+
+### Changed
+- IndexedDB 구조 개선: `Pattern > Pad > Steps` 계층 구조로 데이터 영속성 강화
+- 프로젝트 저장/불러오기: 프로젝트 내 모든 16개 패턴 및 Song 구성을 포함하도록 확장
+- Pad Options: 클리핑 방지를 위한 중앙 정렬 모달 시스템으로 전환
+
+### Fixed
+- `initSequencer` 시 메타데이터 필터링 및 초기 패턴 생성 오류 수정
+- 모바일 브라우저의 passive listener 및 더블 트리거 이슈 해결
 
 ---
 
