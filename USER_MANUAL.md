@@ -105,6 +105,40 @@ To maximize clarity on mobile screens, active steps display parameters visually 
 
 ---
 
+## 🎵 Song Mode (Multi-Pattern Sequencing)
+
+USS44 supports up to **16 independent patterns (A-P)**, which can be chained together to compose complete songs.
+
+### Pattern Switching (Header LCD)
+- **TAP PAT**: Tap the **PAT** area in the header LCD to cycle to the next pattern (A→B→...→P→A).
+- **LONG TAP PAT**: Long-press to open the **Pattern Selection Modal** and jump directly to any pattern (A-P).
+- **LONG TAP CH**: Long-press the **CH** area in the header LCD to open the **Channel Selection Modal**.
+
+### Entering Song Mode
+1. Tap the **SONG** button in the header to switch to Song Mode.
+2. The view changes to the **Song Editor**, with a **Pattern Selector (A-P)** at the top and the **Song Sequence Grid** below.
+
+### Editing the Song
+- **Adding Patterns**: Tap a pattern (A-P) in the top selector to insert it **after the currently selected tile**.
+- **Selecting Tiles**: Tap a tile in the grid to select it. Selected tiles are highlighted with a white border.
+- **Deleting Tiles**: **Double-tap** a tile to instantly delete it.
+- **Reordering Tiles (Drag & Drop)**:
+  1. Touch/click the **drag handle (⋮⋮)** in the top-right corner of a tile.
+  2. Drag to the desired position. The drop location is indicated by a **pink vertical line**.
+     - A line on the **left** means the tile will be inserted **before** that position.
+     - A line on the **right** means it will be inserted **after**.
+  3. Release to confirm the new order.
+
+### Song Playback
+- **Start from Selection**: Select a tile in the Song Sequence, then press **Play** to start playback from that pattern.
+- **Automatic Progression**: When the last step of a pattern finishes, playback automatically advances to the next pattern in the sequence.
+- **Real-time Highlight**: The currently playing pattern tile shows a pink bar at the top.
+
+### Saving Songs
+- **Export Project Song**: Exporting a Project Song from the Settings menu includes **all 16 patterns and the full song arrangement**.
+
+---
+
 ## ⌨️ Keyboard Shortcuts
 
 | Key | Action |
