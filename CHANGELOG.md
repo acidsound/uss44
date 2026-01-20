@@ -4,6 +4,19 @@
 
 ---
 
+## [1.3.2] - 2026-01-21
+
+### Improved
+- **Smart Quantization**: `AudioContext.currentTime` 및 `performance.now()`를 결합한 고정밀 퀀타이즈 로직 적용. 이제 연주가 약간 늦더라도(50% 이내) 이전 정박에 정확히 붙습니다.
+- **De-flam Logic**: 실시간 녹음 시 발생하는 중복 트리거(따닥 소리) 현상을 완전히 해결하여 연주감이 더욱 매끄러워졌습니다.
+- **Keyboard Shortcuts**: Step(Sequence) 및 Song 모드에서도 키보드를 이용한 패드 연주 및 선택이 가능하도록 개선되었습니다.
+
+### Fixed
+- **Recording Stability**: 리얼타임 녹음 중 IndexedDB 저장 시 발생하던 `DataError` 예외 처리 및 안정화.
+- **Input Jitter**: `App.tsx` 이벤트 리스너 최적화를 통해 모드 전환 시 입력이 누락되던 현상 수정.
+
+---
+
 ## [1.3.1] - 2026-01-21
 
 ### Added

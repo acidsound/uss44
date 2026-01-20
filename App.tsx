@@ -110,6 +110,28 @@ const App: React.FC = () => {
     () => cyclePattern()
   );
 
+  // Precise Quantization Logic:
+  // Using AudioContext.currentTime (the master clock) to determine the nearest step
+  const getQuantizedStep = () => {
+    const { audioContext } = useAudioStore.getState();
+    const { bpm, stepCount } = useSequencerStore.getState();
+    if (!audioContext) return currentStepRef.current;
+
+    const secondsPerBeat = 60.0 / bpm;
+    const stepTime = 0.25 * secondsPerBeat;
+
+    // nextNoteTimeRef is the scheduled time of the 'currentStepRef'
+    // How far are we from that time?
+    const timeUntilNext = nextNoteTimeRef.current - audioContext.currentTime;
+
+    // If we are more than 50% of a step away from the NEXT step,
+    // we are closer to the PREVIOUS step.
+    if (timeUntilNext > stepTime * 0.5) {
+      return (currentStepRef.current - 1 + stepCount) % stepCount;
+    }
+    return currentStepRef.current;
+  };
+
   // UltraSample Mode Logic
   const handleUltraRecordStart = React.useCallback((padIdx: number) => {
     if (!isUltraSampleMode) return;
@@ -205,21 +227,24 @@ const App: React.FC = () => {
       if (padIdx !== undefined) {
         e.preventDefault();
 
+        // 1. UltraRecord Mode (High priority)
         if (isUltraSampleMode) {
           handleUltraRecordStart(padIdx);
           return;
         }
 
-        if (appMode === AppMode.SEQUENCE || appMode === AppMode.SONG) {
-          // Keyboard shortcuts disabled in Sequence/Song appMode per user request
-          return;
-        } else if (isEditMode) {
-          selectPad(padIdx);
-        } else {
-          selectPad(padIdx);
+        // 2. Standard Pad Trigger (Now allowed in all modes)
+        const currentIsEditMode = isEditMode;
+        // Logic: In edit mode, only select. In perform mode, select + trigger.
+        selectPad(padIdx);
+
+        if (!currentIsEditMode) {
           triggerPad(padIdx);
-          if (isPlaying && isRecording) {
-            recordHit(currentChannel, padIdx);
+
+          // Record hit if recording and playing
+          const seqState = useSequencerStore.getState();
+          if (seqState.isPlaying && seqState.isRecording) {
+            recordHit(currentChannel, padIdx, 127, getQuantizedStep());
           }
         }
       }
@@ -237,7 +262,7 @@ const App: React.FC = () => {
           return;
         }
 
-        if (appMode !== AppMode.SEQUENCE && appMode !== AppMode.SONG && !isEditMode) {
+        if (!isEditMode) {
           stopPad(padIdx);
         }
       }
@@ -249,7 +274,9 @@ const App: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [appMode, currentChannel, selectedPadIndex, togglePlay, selectPad, triggerPad, stopPad, toggleStep, setSelectedStepIndex, isUltraSampleMode, isEditMode, handleUltraRecordStart, handleUltraRecordStop]);
+    // Reduced dependencies: use sequencerStore/padStore via getState where possible 
+    // to avoid listener re-creation jitter
+  }, [isUltraSampleMode, isEditMode, currentChannel, selectPad, triggerPad, stopPad, togglePlay, handleUltraRecordStart, handleUltraRecordStop]);
 
   useEffect(() => {
     const startApp = async () => {
@@ -393,6 +420,9 @@ const App: React.FC = () => {
 
     currentStepRef.current = nextStep;
     setStep(currentStepRef.current);
+
+    // Record the absolute time of this step transition for quantization logic
+    useSequencerStore.getState().setLastStepTime(performance.now());
   };
 
   const scheduleNoteAtTime = (step: number, time: number) => {
@@ -408,6 +438,19 @@ const App: React.FC = () => {
         // Key format is "Channel-PadIndex" (e.g. "A-0")
         const [channelId, padIndexStr] = trackKey.split('-');
         const padIndex = parseInt(padIndexStr);
+
+        // De-flam Check:
+        // If the user JUST recorded this note (within last 300ms), 
+        // don't play it from sequencer to avoid double triggering.
+        const { recentUserHits, isRecording } = useSequencerStore.getState();
+        if (isRecording) {
+          const flammedKey = `${step}-${channelId}-${padIndex}`;
+          const lastHitTime = recentUserHits[flammedKey];
+          if (lastHitTime && performance.now() - lastHitTime < 350) {
+            // Skip sequencing this note (it was just played manually)
+            continue;
+          }
+        }
 
         const secondsPerBeat = 60.0 / bpmRef.current;
         const stepTimeInSeconds = 0.25 * secondsPerBeat;
@@ -490,15 +533,15 @@ const App: React.FC = () => {
           {/* Left Pulse Line */}
           <div
             className={`absolute left-0 top-0 bottom-0 w-1.5 z-[55] pointer-events-none transition-all duration-75 ${currentStep % 4 === 0
-                ? 'bg-retro-accent shadow-[0_0_20px_rgba(255,30,86,0.8),0_0_40px_rgba(255,30,86,0.4)]'
-                : 'bg-retro-accent/40 shadow-[0_0_10px_rgba(255,30,86,0.3)]'
+              ? 'bg-retro-accent shadow-[0_0_20px_rgba(255,30,86,0.8),0_0_40px_rgba(255,30,86,0.4)]'
+              : 'bg-retro-accent/40 shadow-[0_0_10px_rgba(255,30,86,0.3)]'
               }`}
           />
           {/* Right Pulse Line */}
           <div
             className={`absolute right-0 top-0 bottom-0 w-1.5 z-[55] pointer-events-none transition-all duration-75 ${currentStep % 4 === 0
-                ? 'bg-retro-accent shadow-[0_0_20px_rgba(255,30,86,0.8),0_0_40px_rgba(255,30,86,0.4)]'
-                : 'bg-retro-accent/40 shadow-[0_0_10px_rgba(255,30,86,0.3)]'
+              ? 'bg-retro-accent shadow-[0_0_20px_rgba(255,30,86,0.8),0_0_40px_rgba(255,30,86,0.4)]'
+              : 'bg-retro-accent/40 shadow-[0_0_10px_rgba(255,30,86,0.3)]'
               }`}
           />
         </>
@@ -790,6 +833,7 @@ const App: React.FC = () => {
                 isUltraSampleMode={isUltraSampleMode}
                 onUltraRecordStart={handleUltraRecordStart}
                 onUltraRecordStop={handleUltraRecordStop}
+                getQuantizedStep={getQuantizedStep}
               />
             )}
           </div>

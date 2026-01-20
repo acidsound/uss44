@@ -11,6 +11,7 @@ interface PadGridProps {
   isUltraSampleMode?: boolean;
   onUltraRecordStart?: (index: number) => void;
   onUltraRecordStop?: (index: number) => void;
+  getQuantizedStep?: () => number;
 }
 
 /**
@@ -25,7 +26,8 @@ export const PadGrid: React.FC<PadGridProps> = ({
   isEditMode = false,
   isUltraSampleMode = false,
   onUltraRecordStart,
-  onUltraRecordStop
+  onUltraRecordStop,
+  getQuantizedStep
 }) => {
   const { pads, samples, currentChannel, selectedPadId, selectPad, triggerPad, stopPad, isCloneMode, setCloneMode, executeClone } = usePadStore();
   const { currentStep, isPlaying, patterns, toggleStep, setSelectedStepIndex, selectedStepIndex, isRecording, recordHit } = useSequencerStore();
@@ -66,7 +68,8 @@ export const PadGrid: React.FC<PadGridProps> = ({
       selectPad(idx);
       triggerPad(idx);
       if (isPlaying && isRecording) {
-        recordHit(currentChannel, idx);
+        const targetStep = getQuantizedStep ? getQuantizedStep() : undefined;
+        recordHit(currentChannel, idx, 127, targetStep);
       }
     }
 

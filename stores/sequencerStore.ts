@@ -25,10 +25,15 @@ interface SequencerState {
   lastStepSettings: Omit<StepData, 'active'>;
   isRecording: boolean;
 
+  // De-flam: Track recent user triggers to prevent duplicate sequencing
+  recentUserHits: Record<string, number>;
+  lastStepTime: number;
+
   // Actions
   setBpm: (bpm: number) => void;
   togglePlay: () => void;
   setStep: (step: number) => void;
+  setLastStepTime: (time: number) => void;
   setStepCount: (count: number) => void;
   setSelectedStepIndex: (index: number) => void;
 
@@ -37,7 +42,7 @@ interface SequencerState {
   updateStepData: (channel: string, padIndex: number, stepIndex: number, updates: Partial<StepData>) => void;
   setPatterns: (patterns: Record<string, StepData[]>) => void;
   setIsRecording: (rec: boolean) => void;
-  recordHit: (channel: string, padIndex: number, velocity?: number) => void;
+  recordHit: (channel: string, padIndex: number, velocity?: number, targetStepIndex?: number) => void;
 
   // Song/Pattern Actions
   initSequencer: () => Promise<void>;
@@ -81,6 +86,8 @@ export const useSequencerStore = create<SequencerState>((set, get) => ({
   selectedSongIndex: -1,
 
   isRecording: false,
+  recentUserHits: {},
+  lastStepTime: 0,
 
   // Default last settings
   lastStepSettings: {
@@ -227,6 +234,7 @@ export const useSequencerStore = create<SequencerState>((set, get) => ({
   }),
 
   setStep: (step) => set({ currentStep: step }),
+  setLastStepTime: (time) => set({ lastStepTime: time }),
 
   setSelectedStepIndex: (index) => set({ selectedStepIndex: index }),
 
@@ -306,9 +314,22 @@ export const useSequencerStore = create<SequencerState>((set, get) => ({
 
   setIsRecording: (isRecording) => set({ isRecording }),
 
-  recordHit: (channel, padIndex, velocity = 127) => {
-    const { isPlaying, isRecording, currentStep, patterns, stepCount, lastStepSettings, activePatternId, patternLibrary } = get();
+  recordHit: (channel, padIndex, velocity = 127, targetStepIndex?: number) => {
+    const { isPlaying, isRecording, currentStep, patterns, stepCount, lastStepSettings, activePatternId, patternLibrary, recentUserHits, lastStepTime, bpm } = get();
     if (!isPlaying || !isRecording || currentStep < 0) return;
+
+    const now = performance.now();
+    let targetStep = targetStepIndex !== undefined ? targetStepIndex : currentStep;
+
+    // Fallback Smart Quantize Logic (only if targetStepIndex not provided)
+    if (targetStepIndex === undefined) {
+      const stepDurationMs = (60000 / bpm) / 4;
+      const diff = now - lastStepTime;
+
+      if (diff < stepDurationMs * 0.5) {
+        targetStep = (currentStep - 1 + stepCount) % stepCount;
+      }
+    }
 
     const key = `${channel}-${padIndex}`;
     let track = patterns[key] ? [...patterns[key]] : [];
@@ -319,20 +340,38 @@ export const useSequencerStore = create<SequencerState>((set, get) => ({
       track = [...track, ...Array.from({ length: missing }, createDefaultStep)];
     }
 
-    // Record the Hit at currentStep
-    track[currentStep] = {
-      ...track[currentStep],
+    // Record the Hit at targetStep
+    track[targetStep] = {
+      ...track[targetStep],
       active: true,
       velocity: velocity,
       pitch: lastStepSettings.pitch, // Use last used pitch
       length: lastStepSettings.length // Use last used length
     };
 
+    // De-flam: Mark this hit as "handled"
+    const flammedKey = `${targetStep}-${channel}-${padIndex}`;
+    const newRecentHits = { ...recentUserHits, [flammedKey]: performance.now() };
+
+    // Clean up old hits
+    Object.keys(newRecentHits).forEach(k => {
+      if (now - newRecentHits[k] > 500) delete newRecentHits[k];
+    });
+
     const newPatterns = { ...patterns, [key]: track };
-    const updatedPattern = { ...patternLibrary[activePatternId], tracks: newPatterns };
+
+    // Safety check: ensure we have a valid pattern object before saving
+    const validPattern = patternLibrary[activePatternId] || {
+      id: activePatternId,
+      name: `Pattern ${String.fromCharCode(65 + parseInt(activePatternId.split('-')[1]))}`,
+      tracks: {},
+      stepCount: 16
+    };
+
+    const updatedPattern = { ...validPattern, tracks: newPatterns };
     const newLibrary = { ...patternLibrary, [activePatternId]: updatedPattern };
 
-    set({ patterns: newPatterns, patternLibrary: newLibrary });
+    set({ patterns: newPatterns, patternLibrary: newLibrary, recentUserHits: newRecentHits });
     dbService.savePattern(updatedPattern);
   },
 
