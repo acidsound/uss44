@@ -168,10 +168,18 @@ export const SongEditor: React.FC = () => {
                                         onClick={() => !isDragging && handleTileTap(index)}
                                         className={`
                                             relative aspect-square flex flex-col items-center justify-center rounded-lg border-2 transition-all cursor-pointer overflow-hidden
-                                            ${isPlaying ? 'border-retro-accent shadow-[0_0_15px_rgba(255,30,86,0.4)] z-10' : (isSelected ? 'border-white bg-zinc-800' : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700')}
+                                            ${isPlaying
+                                                ? 'border-retro-accent shadow-[0_0_15px_rgba(255,30,86,0.4)] z-10'
+                                                : (isSelected ? 'border-white bg-zinc-800' : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700')
+                                            }
+                                            ${isSelected && !isPlaying ? 'shadow-[0_0_10px_rgba(255,255,255,0.2)]' : ''}
                                             ${isDragging ? 'opacity-30 scale-90 border-dashed border-zinc-600' : 'opacity-100'}
                                         `}
                                     >
+                                        {/* Nested White border if both active */}
+                                        {isPlaying && isSelected && (
+                                            <div className="absolute inset-[3px] border-2 border-white rounded-[5px] pointer-events-none z-20" />
+                                        )}
                                         {/* Drag Handle */}
                                         <div
                                             className="drag-handle absolute top-0 right-0 p-1.5 text-zinc-600 hover:text-zinc-400 active:text-retro-accent cursor-grab active:cursor-grabbing touch-none"

@@ -120,8 +120,9 @@ USS44 supports up to **16 independent patterns (A-P)**, which can be chained tog
 2. The view changes to the **Song Editor**, with a **Pattern Selector (A-P)** at the top and the **Song Sequence Grid** below.
 
 ### Editing the Song
-- **Adding Patterns**: Tap a pattern (A-P) in the top selector to insert it **after the currently selected tile**.
-- **Selecting Tiles**: Tap a tile in the grid to select it. Selected tiles are highlighted with a white border.
+- **Adding Patterns**: Tap a pattern (A-P) in the top selector to insert it **after the currently selected tile (white border)**. If nothing is selected, it will be added to the end.
+- **Selecting Tiles (White Border)**: Tap a tile in the grid to select it. it's highlighted with a white border. **Playback (Play) always starts from this selected tile.**
+- **Playback Position (Red Border)**: Indicates the currently playing or last played position. You can select other tiles while playing without interrupting the rhythm, allowing you to prepare the next section on the fly.
 - **Deleting Tiles**: **Double-tap** a tile to instantly delete it.
 - **Reordering Tiles (Drag & Drop)**:
   1. Touch/click the **drag handle (⋮⋮)** in the top-right corner of a tile.

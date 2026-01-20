@@ -430,33 +430,43 @@ export const useSequencerStore = create<SequencerState>((set, get) => ({
   },
 
   insertIntoSong: (patternId, afterIndex) => {
-    const { song, patternLibrary } = get();
+    const { song, patternLibrary, songIndex, isPlaying } = get();
     const newItem: SongItem = {
-      id: `song-item-${Date.now() + Math.random()}`,
+      id: `song-item-${performance.now() + Math.random()}`,
       patternId
     };
 
+    const isInitial = song.length === 0;
     let newSong = [...song];
-    if (afterIndex === -1 && song.length === 0) {
-      newSong = [newItem];
+    let insertedIdx = 0;
+
+    // If no specific index is selected, or song is empty, append to the end
+    if (afterIndex === -1) {
+      newSong.push(newItem);
+      insertedIdx = newSong.length - 1;
     } else {
       newSong.splice(afterIndex + 1, 0, newItem);
+      insertedIdx = afterIndex + 1;
     }
-
-    // Auto-select and sync playback buffer to the inserted pattern
-    const nextIdx = afterIndex + 1;
-    const pattern = patternLibrary[newItem.patternId];
 
     const updates: Partial<SequencerState> = {
       song: newSong,
-      selectedSongIndex: nextIdx,
-      songIndex: nextIdx
+      selectedSongIndex: insertedIdx,
     };
 
-    if (pattern) {
-      updates.activePatternId = pattern.id;
-      updates.patterns = pattern.tracks;
-      updates.stepCount = pattern.stepCount;
+    // If this is the first pattern, or we're not playing, sync the playback head
+    if (isInitial) {
+      updates.songIndex = 0;
+      const pattern = patternLibrary[newItem.patternId];
+      if (pattern) {
+        updates.activePatternId = pattern.id;
+        updates.patterns = pattern.tracks;
+        updates.stepCount = pattern.stepCount;
+      }
+    } else if (insertedIdx <= songIndex) {
+      // If we inserted BEFORE or at the current playing index, 
+      // shift the playing index to keep playing the same pattern
+      updates.songIndex = songIndex + 1;
     }
 
     set(updates);
@@ -469,14 +479,11 @@ export const useSequencerStore = create<SequencerState>((set, get) => ({
 
     const updates: Partial<SequencerState> = { selectedSongIndex: index };
 
-    // Sync the playback head (songIndex) to the selection
-    // This ensures that stop/restart OR transitions during playback respect the selection
-    if (index >= 0) {
+    // Only sync the playback head if we are NOT playing.
+    // This allows the user to browse/select patterns while the song continues playing.
+    if (!isPlaying && index >= 0) {
       updates.songIndex = index;
-    }
 
-    // Also sync the playback patterns to the selected one so user hears/sees it
-    if (index >= 0 && index < song.length) {
       const item = song[index];
       const pattern = patternLibrary[item.patternId];
       if (pattern) {
@@ -490,17 +497,35 @@ export const useSequencerStore = create<SequencerState>((set, get) => ({
   },
 
   removeFromSong: (index) => {
-    const { song, selectedSongIndex } = get();
+    const { song, selectedSongIndex, songIndex } = get();
     const newSong = song.filter((_, i) => i !== index);
 
     // Adjust selection
     let nextSelected = selectedSongIndex;
-    if (index <= selectedSongIndex) {
-      nextSelected = Math.max(-1, selectedSongIndex - 1);
+    if (index === selectedSongIndex) {
+      nextSelected = Math.min(index, newSong.length - 1);
+    } else if (index < selectedSongIndex) {
+      nextSelected = selectedSongIndex - 1;
     }
-    if (newSong.length === 0) nextSelected = -1;
 
-    set({ song: newSong, selectedSongIndex: nextSelected });
+    // Adjust playback head
+    let nextSongIndex = songIndex;
+    if (index < songIndex) {
+      nextSongIndex = songIndex - 1;
+    } else if (index === songIndex) {
+      nextSongIndex = Math.min(index, newSong.length - 1);
+    }
+
+    if (newSong.length === 0) {
+      nextSelected = -1;
+      nextSongIndex = 0;
+    }
+
+    set({
+      song: newSong,
+      selectedSongIndex: nextSelected,
+      songIndex: Math.max(0, nextSongIndex)
+    });
     dbService.saveSong(newSong);
   },
 
@@ -521,7 +546,7 @@ export const useSequencerStore = create<SequencerState>((set, get) => ({
       const pattern = patternLibrary[nextItem.patternId];
       set({
         songIndex: nextIndex,
-        selectedSongIndex: nextIndex, // Keep UI selection in sync with playback
+        // selectedSongIndex: nextIndex, // REMOVED: Keep user selection independent
         activePatternId: pattern.id,
         patterns: pattern.tracks,
         stepCount: pattern.stepCount
