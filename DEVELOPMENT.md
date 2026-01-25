@@ -26,7 +26,7 @@ The codebase is structured to decouple UI from business logic and audio processi
 
 
 ```
-/Users/spectrum/Documents/works/_MW/uss44/
+<PROJECT_PATH>
 ├── components/         # React UI components
 │   ├── BpmModal.tsx         # BPM and tempo control modal
 │   ├── DigNetwork.tsx       # Social media audio extraction
