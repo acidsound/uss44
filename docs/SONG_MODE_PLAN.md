@@ -1,4 +1,4 @@
-ㅖ# Song Mode Implementation Plan
+# Song Mode Implementation Plan
 
 ## 1. Overview
 The **Song Mode** feature upgrades USS44 from a single-loop sequencer to a pattern-based song arranger. It introduces the concept of **Patterns** (independent 16-64 step sequences) and a **Song Playlist** (a sequential list of patterns).
