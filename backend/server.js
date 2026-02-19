@@ -1,28 +1,24 @@
 /**
- * USS44 Dig Backend
- * Audio extraction server using yt-dlp
+ * USS44 Backend
+ * YouTube search and metadata server using Official YouTube Data API v3
  */
 
 import express from 'express';
 import cors from 'cors';
-import { spawn, exec } from 'child_process';
-import { promisify } from 'util';
-import { createReadStream, existsSync, mkdirSync, unlinkSync, statSync } from 'fs';
-import { join, dirname } from 'path';
+import { existsSync } from 'fs';
+import { dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { randomBytes } from 'crypto';
+import dotenv from 'dotenv';
 
-const execAsync = promisify(exec);
+dotenv.config();
+// Support .env.local as well
+if (existsSync('.env.local')) {
+    dotenv.config({ path: '.env.local', override: true });
+}
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
-
 const app = express();
 const PORT = process.env.PORT || 3001;
-const TEMP_DIR = join(__dirname, 'temp');
-
-// Ensure temp directory exists
-if (!existsSync(TEMP_DIR)) {
-    mkdirSync(TEMP_DIR, { recursive: true });
-}
 
 // Middleware
 app.use(cors({
@@ -47,152 +43,154 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Serve static audio files
-app.use('/audio', express.static(TEMP_DIR, {
-    setHeaders: (res) => {
-        res.set('Content-Type', 'audio/mpeg');
-        res.set('Accept-Ranges', 'bytes');
-    }
-}));
-
-// Supported platforms
-const SUPPORTED_PLATFORMS = ['youtube', 'tiktok', 'instagram', 'xiaohongshu', 'rutube'];
-
 /**
- * Check if yt-dlp is installed
+ * YouTube Data API v3 Service
  */
-async function checkYtDlp() {
-    try {
-        await execAsync('yt-dlp --version');
-        return true;
-    } catch {
-        return false;
-    }
-}
+const YouTubeService = {
+    apiKey: process.env.YOUTUBE_API_KEY,
+    baseUrl: 'https://www.googleapis.com/youtube/v3',
 
-/**
- * Get video info without downloading
- */
-async function getVideoInfo(url) {
-    try {
-        // Use flags to be more robust against blocks
-        const { stdout } = await execAsync(
-            `yt-dlp --dump-json --no-download --no-check-certificate --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36" "${url}"`,
-            { timeout: 30000 }
-        );
-        return JSON.parse(stdout);
-    } catch (error) {
-        console.error('Failed to get video info:', error.message);
-        return null;
-    }
-}
-
-/**
- * Extract audio from URL with optional time range
- */
-async function extractAudio(url, outputPath, options = {}) {
-    const { format = 'mp3', quality = '192', startTime, endTime } = options;
-
-    return new Promise((resolve, reject) => {
-        const args = [
-            '-x',                          // Extract audio
-            '--audio-format', format,      // Output format
-            '--audio-quality', quality + 'K', // Audio quality
-            '--no-playlist',               // Don't download playlists
-            '--no-warnings',               // Suppress warnings
-            '--no-check-certificate',      // Skip certificate verification
-            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        ];
-
-        // Add time range if specified (yt-dlp 2021.12.01+)
-        if (startTime !== undefined && endTime !== undefined) {
-            // Format: *start-end for time range extraction
-            const startStr = formatTimeForYtDlp(startTime);
-            const endStr = formatTimeForYtDlp(endTime);
-            args.push('--download-sections', `*${startStr}-${endStr}`);
-            console.log(`[yt-dlp] Time range: ${startStr} to ${endStr}`);
+    /**
+     * Search for videos
+     */
+    async search(query, limit = 10) {
+        if (!this.apiKey) {
+            throw new Error('YOUTUBE_API_KEY is not configured');
         }
 
-        args.push('-o', outputPath);     // Output path
-        args.push(url);                  // Source URL
-
-        console.log(`[yt-dlp] Extracting: ${url}`);
-        console.log(`[yt-dlp] Args: yt-dlp ${args.join(' ')}`);
-
-        const process = spawn('yt-dlp', args);
-
-        let stderr = '';
-
-        process.stdout.on('data', (data) => {
-            console.log(`[yt-dlp] ${data.toString()}`);
+        const params = new URLSearchParams({
+            part: 'snippet',
+            q: query,
+            maxResults: limit,
+            type: 'video',
+            key: this.apiKey,
         });
 
-        process.stderr.on('data', (data) => {
-            stderr += data.toString();
-            console.error(`[yt-dlp stderr] ${data.toString()}`);
-        });
+        const response = await fetch(`${this.baseUrl}/search?${params}`);
+        const data = await response.json();
 
-        process.on('close', (code) => {
-            if (code === 0) {
-                // yt-dlp might add extension, check for file
-                const possiblePaths = [
-                    outputPath,
-                    outputPath + '.' + format,
-                    outputPath.replace(/\.[^.]+$/, '.' + format),
-                ];
-
-                for (const p of possiblePaths) {
-                    if (existsSync(p)) {
-                        resolve(p);
-                        return;
-                    }
-                }
-
-                reject(new Error('Output file not found after extraction'));
-            } else {
-                reject(new Error(`yt-dlp exited with code ${code}: ${stderr}`));
-            }
-        });
-
-        process.on('error', (error) => {
-            reject(new Error(`Failed to spawn yt-dlp: ${error.message}`));
-        });
-    });
-}
-
-/**
- * Format seconds to HH:MM:SS for yt-dlp
- */
-function formatTimeForYtDlp(seconds) {
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-}
-
-/**
- * Clean up old temp files (older than 1 hour)
- */
-function cleanupTempFiles() {
-    try {
-        const files = require('fs').readdirSync(TEMP_DIR);
-        const oneHourAgo = Date.now() - (60 * 60 * 1000);
-
-        for (const file of files) {
-            const filePath = join(TEMP_DIR, file);
-            const stats = statSync(filePath);
-            if (stats.mtimeMs < oneHourAgo) {
-                unlinkSync(filePath);
-                console.log(`[cleanup] Deleted old file: ${file}`);
-            }
+        if (data.error) {
+            throw new Error(`YouTube API Error: ${data.error.message}`);
         }
-    } catch (error) {
-        console.error('Cleanup error:', error.message);
-    }
-}
 
-// Run cleanup every 30 minutes
-setInterval(cleanupTempFiles, 30 * 60 * 1000);
+        // Get durations for search results in a second call since search doesn't include contentDetails
+        const videoIds = data.items.map(item => item.id.videoId).join(',');
+        const durations = await this.getVideoDurations(videoIds);
+
+        return data.items.map(item => {
+            const videoId = item.id.videoId;
+            return {
+                id: videoId,
+                title: item.snippet.title,
+                url: `https://www.youtube.com/watch?v=${videoId}`,
+                thumbnail: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.default?.url,
+                duration: durations[videoId] || 0,
+                duration_string: this.formatISO8601Duration(durations[videoId] || 0),
+                uploader: item.snippet.channelTitle,
+                platform: 'youtube'
+            };
+        });
+    },
+
+    /**
+     * Get video information by ID or URL
+     */
+    async getInfo(idOrUrl) {
+        if (!this.apiKey) {
+            throw new Error('YOUTUBE_API_KEY is not configured');
+        }
+
+        const videoId = this.extractVideoId(idOrUrl);
+        if (!videoId) {
+            throw new Error('Invalid YouTube ID or URL');
+        }
+
+        const params = new URLSearchParams({
+            part: 'snippet,contentDetails',
+            id: videoId,
+            key: this.apiKey,
+        });
+
+        const response = await fetch(`${this.baseUrl}/videos?${params}`);
+        const data = await response.json();
+
+        if (data.error) {
+            throw new Error(`YouTube API Error: ${data.error.message}`);
+        }
+
+        const item = data.items?.[0];
+        if (!item) return null;
+
+        const durationSecs = this.parseISO8601Duration(item.contentDetails.duration);
+
+        return {
+            title: item.snippet.title,
+            duration: durationSecs,
+            thumbnail: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.default?.url,
+            uploader: item.snippet.channelTitle,
+            platform: 'youtube',
+            embedUrl: `https://www.youtube.com/embed/${videoId}`,
+        };
+    },
+
+    /**
+     * Helper: Get durations for multiple video IDs
+     */
+    async getVideoDurations(videoIds) {
+        if (!videoIds) return {};
+
+        const params = new URLSearchParams({
+            part: 'contentDetails',
+            id: videoIds,
+            key: this.apiKey,
+        });
+
+        const response = await fetch(`${this.baseUrl}/videos?${params}`);
+        const data = await response.json();
+
+        const durations = {};
+        data.items?.forEach(item => {
+            durations[item.id] = this.parseISO8601Duration(item.contentDetails.duration);
+        });
+
+        return durations;
+    },
+
+    /**
+     * Helper: Extract Video ID from URL or ID string
+     */
+    extractVideoId(input) {
+        const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
+        const match = input.match(regex);
+        return match ? match[1] : (input.length === 11 ? input : null);
+    },
+
+    /**
+     * Helper: Parse ISO 8601 duration (e.g. PT4M20S) to seconds
+     */
+    parseISO8601Duration(duration) {
+        const regex = /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/;
+        const matches = duration.match(regex);
+        const hours = parseInt(matches[1] || 0);
+        const minutes = parseInt(matches[2] || 0);
+        const seconds = parseInt(matches[3] || 0);
+        return hours * 3600 + minutes * 60 + seconds;
+    },
+
+    /**
+     * Helper: Format seconds to MM:SS or HH:MM:SS string
+     */
+    formatISO8601Duration(seconds) {
+        const hrs = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor(seconds % 60);
+
+        if (hrs > 0) {
+            return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+};
 
 // ==================== ROUTES ====================
 
@@ -200,19 +198,10 @@ setInterval(cleanupTempFiles, 30 * 60 * 1000);
  * Health check endpoint
  */
 app.get('/health', async (req, res) => {
-    const ytdlpInstalled = await checkYtDlp();
     res.json({
         status: 'ok',
         timestamp: new Date().toISOString(),
-        ytdlp: ytdlpInstalled,
     });
-});
-
-/**
- * Get supported platforms
- */
-app.get('/platforms', (req, res) => {
-    res.json({ platforms: SUPPORTED_PLATFORMS });
 });
 
 /**
@@ -225,185 +214,56 @@ app.post('/info', async (req, res) => {
         return res.status(400).json({ error: 'URL is required' });
     }
 
-    const info = await getVideoInfo(url);
+    try {
+        if (url.includes('youtube.com') || url.includes('youtu.be')) {
+            if (!process.env.YOUTUBE_API_KEY) {
+                return res.status(403).json({ error: 'YOUTUBE_API_KEY is not configured on server' });
+            }
 
-    if (!info) {
-        return res.status(404).json({ error: 'Failed to get video info. The URL might be invalid or the platform is blocking the request.' });
-    }
-
-    // Generate embed URL based on platform
-    let embedUrl = null;
-    if (info.webpage_url) {
-        if (info.extractor === 'youtube' && info.id) {
-            embedUrl = `https://www.youtube.com/embed/${info.id}`;
-        } else if (info.extractor === 'rutube' && info.id) {
-            embedUrl = `https://rutube.ru/play/embed/${info.id}`;
-        } else if (info.extractor === 'tiktok' && info.id) {
-            embedUrl = `https://www.tiktok.com/embed/v2/${info.id}`;
+            const info = await YouTubeService.getInfo(url);
+            if (!info) {
+                return res.status(404).json({ error: 'Video not found' });
+            }
+            return res.json(info);
         }
-    }
 
-    res.json({
-        title: info.title,
-        duration: info.duration,
-        thumbnail: info.thumbnail,
-        uploader: info.uploader,
-        platform: info.extractor,
-        embedUrl,
-    });
+        return res.status(400).json({ error: 'Only YouTube is currently supported for metadata lookup' });
+
+    } catch (error) {
+        console.error('[info] Error:', error.message);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 /**
- * Search for videos (YouTube only for now as it supports search natively)
+ * Search for videos (YouTube Data API v3)
  */
 app.post('/search', async (req, res) => {
-    const { query, platform = 'youtube', limit = 10 } = req.body;
+    const { query, limit = 10 } = req.body;
 
     if (!query) {
         return res.status(400).json({ error: 'Query is required' });
     }
 
+    if (!process.env.YOUTUBE_API_KEY) {
+        return res.status(403).json({ error: 'YOUTUBE_API_KEY is not configured on server' });
+    }
+
     try {
-        console.log(`[search] Query: "${query}", Platform: ${platform}`);
-
-        // Only YouTube search is officially supported by yt-dlp via prefix
-        const searchPrefix = platform === 'youtube' ? 'ytsearch' : 'ytsearch'; // Fallback to YouTube
-        const searchUrl = `${searchPrefix}${limit}:${query}`;
-
-        const { stdout } = await execAsync(
-            `yt-dlp --dump-json --flat-playlist --playlist-end ${limit} --no-warning "${searchUrl}"`,
-            { timeout: 30000 }
-        );
-
-        const results = stdout.trim().split('\n')
-            .map(line => {
-                try {
-                    const info = JSON.parse(line);
-                    return {
-                        id: info.id,
-                        title: info.title,
-                        url: info.webpage_url || info.url,
-                        thumbnail: info.thumbnails?.[0]?.url || info.thumbnail,
-                        duration: info.duration,
-                        duration_string: info.duration_string,
-                        uploader: info.uploader || info.channel,
-                        platform: info.extractor || 'youtube'
-                    };
-                } catch (e) {
-                    return null;
-                }
-            })
-            .filter(item => item !== null);
-
+        console.log(`[search] Query: "${query}", Limit: ${limit}`);
+        const results = await YouTubeService.search(query, limit);
         res.json({ results });
     } catch (error) {
         console.error('[search] Error:', error.message);
-        res.status(500).json({ error: 'Failed to search for videos' });
-    }
-});
-
-/**
- * Extract audio from URL
- */
-app.post('/extract', async (req, res) => {
-    const { url, format = 'mp3', quality = '192', startTime, endTime } = req.body;
-
-    if (!url) {
-        return res.status(400).json({ error: 'URL is required' });
-    }
-
-    // Validate time range if provided
-    if (startTime !== undefined && endTime !== undefined) {
-        const duration = endTime - startTime;
-        if (duration <= 0) {
-            return res.status(400).json({ error: 'End time must be greater than start time' });
-        }
-        if (duration > 180) {
-            return res.status(400).json({ error: 'Maximum duration is 3 minutes (180 seconds)' });
-        }
-        console.log(`[extract] Time range requested: ${startTime}s to ${endTime}s (${duration}s)`);
-    }
-
-    // Check yt-dlp availability
-    const ytdlpAvailable = await checkYtDlp();
-    if (!ytdlpAvailable) {
-        return res.status(500).json({
-            error: 'yt-dlp is not installed. Install with: brew install yt-dlp'
-        });
-    }
-
-    const fileId = randomBytes(8).toString('hex');
-    const outputBase = join(TEMP_DIR, fileId);
-
-    try {
-        // Get video info first
-        const info = await getVideoInfo(url);
-
-        // Extract audio with optional time range
-        const outputPath = await extractAudio(url, outputBase, {
-            format,
-            quality,
-            startTime,
-            endTime
-        });
-        const fileName = outputPath.split('/').pop();
-
-        // Generate URL for the audio file
-        const audioUrl = `http://localhost:${PORT}/audio/${fileName}`;
-
-        console.log(`[extract] Success: ${audioUrl}`);
-
-        res.json({
-            success: true,
-            audioUrl,
-            title: info?.title || 'Unknown',
-            duration: info?.duration,
-            thumbnail: info?.thumbnail,
-        });
-
-    } catch (error) {
-        console.error('[extract] Error:', error.message);
         res.status(500).json({ error: error.message });
     }
 });
 
 /**
- * Stream audio directly (alternative to file URL)
+ * Legacy extraction endpoints (Disabled)
  */
-app.get('/stream', async (req, res) => {
-    const { url } = req.query;
-
-    if (!url) {
-        return res.status(400).json({ error: 'URL is required' });
-    }
-
-    const fileId = randomBytes(8).toString('hex');
-    const outputBase = join(TEMP_DIR, fileId);
-
-    try {
-        const outputPath = await extractAudio(url, outputBase);
-
-        const stat = statSync(outputPath);
-        res.set({
-            'Content-Type': 'audio/mpeg',
-            'Content-Length': stat.size,
-            'Accept-Ranges': 'bytes',
-        });
-
-        const stream = createReadStream(outputPath);
-        stream.pipe(res);
-
-        // Clean up after streaming
-        stream.on('end', () => {
-            setTimeout(() => {
-                try { unlinkSync(outputPath); } catch { }
-            }, 60000); // Delete after 1 minute
-        });
-
-    } catch (error) {
-        console.error('[stream] Error:', error.message);
-        res.status(500).json({ error: error.message });
-    }
+app.all(['/extract', '/stream', '/platforms'], (req, res) => {
+    res.status(404).json({ error: 'Endpoint no longer available. yt-dlp related functionality has been removed.' });
 });
 
 // ==================== START SERVER ====================
@@ -412,27 +272,40 @@ app.listen(PORT, () => {
     console.log(`
 ╔═══════════════════════════════════════════════════════╗
 ║                                                       ║
-║   🎧  USS44 Dig Backend                               ║
+║   🎧  USS44 Backend                                   ║
 ║                                                       ║
 ║   Server running on http://localhost:${PORT}            ║
 ║                                                       ║
 ║   Endpoints:                                          ║
 ║   • GET  /health    - Server status                   ║
-║   • GET  /platforms - Supported platforms             ║
-║   • POST /info      - Get video metadata              ║
-║   • POST /extract   - Extract audio from URL          ║
-║   • GET  /stream    - Stream audio directly           ║
+║   • POST /info      - Get YouTube metadata            ║
+║   • POST /search    - Search for YouTube videos       ║
 ║                                                       ║
 ╚═══════════════════════════════════════════════════════╝
   `);
 
-    // Check yt-dlp on startup
-    checkYtDlp().then((installed) => {
-        if (installed) {
-            console.log('✅ yt-dlp is installed and ready');
+    // Check YouTube API key on startup
+    const checkStatus = async () => {
+        if (process.env.YOUTUBE_API_KEY) {
+            console.log('🔍 Validating YouTube API Key...');
+            try {
+                // Perform a simple test request to validate the key (Rick Astley - Never Gonna Give You Up)
+                const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=id&id=dQw4w9WgXcQ&key=${process.env.YOUTUBE_API_KEY}`);
+                const data = await response.json();
+
+                if (response.ok && !data.error) {
+                    console.log('✅ YouTube API Key is VALID');
+                } else {
+                    const errorMsg = data.error?.message || 'Invalid Response';
+                    console.error(`❌ YouTube API Key is INVALID: ${errorMsg}`);
+                }
+            } catch (error) {
+                console.error(`❌ YouTube API Key validation failed: ${error.message}`);
+            }
         } else {
-            console.warn('⚠️  yt-dlp is NOT installed!');
-            console.warn('   Install with: brew install yt-dlp');
+            console.warn('⚠️  YOUTUBE_API_KEY is NOT set in .env or .env.local');
         }
-    });
+    };
+
+    checkStatus();
 });
